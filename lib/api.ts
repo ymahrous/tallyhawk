@@ -208,3 +208,26 @@ export async function getUsage(): Promise<UsageData> {
   if (!res.ok) throw new Error("Failed to fetch usage");
   return res.json();
 }
+
+// --- QUICKBOOKS FUNCTIONS ---
+export async function getQuickBooksConnectUrl(): Promise<{ url: string }> {
+  const res = await authFetch(`${API_URL}/quickbooks/connect`);
+  if (!res.ok) throw new Error("Failed to get QuickBooks connect URL");
+  return res.json();
+}
+
+export async function getQuickBooksStatus(): Promise<{ connected: boolean }> {
+  const res = await authFetch(`${API_URL}/quickbooks/status`);
+  if (!res.ok) throw new Error("Failed to get QuickBooks status");
+  return res.json();
+}
+
+export async function syncToQuickBooks(documentId: string): Promise<void> {
+  const res = await authFetch(`${API_URL}/quickbooks/sync/${documentId}`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Failed to sync to QuickBooks");
+  }
+}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { usePlan } from "../providers/PlanContext";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { logout, decodeToken, isTokenExpired } from "@/lib/api";
+import { getQuickBooksConnectUrl, getQuickBooksStatus } from "@/lib/api";
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 function SectionCard({
@@ -130,6 +131,14 @@ export default function AccountPage() {
   const [accountEmail, setAccountEmail] = useState("");
   const [memberSince, setMemberSince] = useState("");
   const [sessionExpiry, setSessionExpiry] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [qbConnected, setQbConnected] = useState(false);
+  const [isConnectingQb, setIsConnectingQb] = useState(false);
 
   useEffect(() => {
     if (isTokenExpired()) {
@@ -161,13 +170,6 @@ export default function AccountPage() {
   }, [router]);
 
   // ── Password change ──
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [passwordSuccess, setPasswordSuccess] = useState("");
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError("");
@@ -218,6 +220,29 @@ export default function AccountPage() {
       setPasswordError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  // quickbooks integration status check
+  useEffect(() => {
+    const fetchQbStatus = async () => {
+      try {
+        const status = await getQuickBooksStatus();
+        setQbConnected(status.connected);
+      } catch {}
+    };
+    fetchQbStatus();
+  }, []);
+
+  const handleQuickBooksConnect = async () => {
+    setIsConnectingQb(true);
+    try {
+      const { url } = await getQuickBooksConnectUrl();
+      window.location.href = url; // Redirect to Intuit login
+    } catch (err) {
+      alert("Failed to initiate QuickBooks connection.");
+    } finally {
+      setIsConnectingQb(false);
     }
   };
 
@@ -352,6 +377,59 @@ export default function AccountPage() {
               /> */}
             </div>
           )}
+        </SectionCard>
+
+        {/* Integrations */}
+        <SectionCard
+          title="Integrations"
+          description="Connect third-party services to automate your workflow."
+          isDark={isDark}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                qbConnected ? "bg-emerald-500/20" : isDark ? "bg-white/10" : "bg-gray-100"
+              }`}>
+                <svg className={`w-5 h-5 ${qbConnected ? "text-emerald-400" : isDark ? "text-gray-500" : "text-gray-400"}`} viewBox="0 0 24 24" fill="currentColor">
+                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
+                </svg>
+              </div>
+              <div>
+                <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
+                  QuickBooks Online
+                </p>
+                <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                  {qbConnected ? "Connected" : "Not connected"}
+                </p>
+              </div>
+            </div>
+
+            {currentPlan === "pro" ? (
+              qbConnected ? (
+                <span className="text-xs font-medium px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  Active
+                </span>
+              ) : (
+                <button
+                  onClick={handleQuickBooksConnect}
+                  disabled={isConnectingQb}
+                  className={`text-xs font-medium px-4 py-2 rounded-lg transition-colors ${
+                    isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                  }`}
+                >
+                  {isConnectingQb ? "Redirecting..." : "Connect"}
+                </button>
+              )
+            ) : (
+              <button
+                onClick={() => router.push("/pricing")}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-1"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                Pro
+              </button>
+            )}
+          </div>
         </SectionCard>
 
         {/* Session Info */}
