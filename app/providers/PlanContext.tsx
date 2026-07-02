@@ -23,10 +23,18 @@ const PlanContext = createContext<PlanData>({
   lastRenewalDate: null,
 });
 
+// NEW: Helper function to read the JWT instantly before the first render
+function getInitialPlan(): string | null {
+  if (typeof window === "undefined") return null; 
+  const tokenData = decodeToken();
+  return tokenData?.plan || null;
+}
+
 export function PlanProvider({ children }: { children: ReactNode }) {
-  const [plan, setPlan] = useState<string | null>(null);
+  // NEW: Initialize state synchronously from the JWT to prevent flicker
+  const [plan, setPlan] = useState<string | null>(getInitialPlan);
   const [documentsProcessed, setDocumentsProcessed] = useState(0);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(() => getInitialPlan() === "pro" ? -1 : 10);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
   const [lastRenewalDate, setLastRenewalDate] = useState<string | null>(null);
@@ -38,17 +46,20 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       setDocumentsProcessed(usageData.documents_processed);
       setLimit(usageData.limit);
 
-      // FETCH SUBSCRIPTION DATA
       if (usageData.plan === "pro") {
-        const subData = await getSubscription();
-        setCurrentPeriodEnd(subData.current_period_end);
-        setLastRenewalDate(subData.last_renewal_date);
+        // Only fetch subscription dates if they are pro
+        try {
+          const subData = await getSubscription(); // Make sure this is imported from @/lib/api
+          setCurrentPeriodEnd(subData.current_period_end);
+          setLastRenewalDate(subData.last_renewal_date);
+        } catch {}
       } else {
         setCurrentPeriodEnd(null);
         setLastRenewalDate(null);
       }
+
     } catch {
-      // Fallback to JWT if API fails or user is not logged in
+      // If API fails, fallback to JWT (which is already set, but good to be safe)
       const tokenData = decodeToken();
       if (tokenData?.plan) {
         setPlan(tokenData.plan);
@@ -64,12 +75,11 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (token) {
-      refreshPlan();
+      refreshPlan(); // Verify with backend API
     } else {
       setIsLoading(false);
     }
     
-    // Re-fetch plan if auth state changes (e.g., login/logout)
     const syncAuth = () => {
       const currentToken = localStorage.getItem("token");
       if (currentToken) {
@@ -78,6 +88,9 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         setPlan(null);
         setDocumentsProcessed(0);
         setLimit(10);
+        setCurrentPeriodEnd(null);
+        setLastRenewalDate(null);
+        setIsLoading(false);
       }
     };
     window.addEventListener("storage", syncAuth);

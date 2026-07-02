@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePlan } from "../providers/PlanContext";
 import { useTheme } from "@/app/providers/ThemeContext";
-import { logout, decodeToken, isTokenExpired } from "@/lib/api";
+import { logout, decodeToken, isTokenExpired, disconnectQuickBooks } from "@/lib/api";
 import { getQuickBooksConnectUrl, getQuickBooksStatus } from "@/lib/api";
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -141,6 +141,7 @@ export default function AccountPage() {
   const [qbConnected, setQbConnected] = useState(false);
   const [isConnectingQb, setIsConnectingQb] = useState(false);
   const [qbStatusMessage, setQbStatusMessage] = useState("");
+  const [isDisconnectingQb, setIsDisconnectingQb] = useState(false);
 
   useEffect(() => {
     if (isTokenExpired()) {
@@ -305,6 +306,21 @@ export default function AccountPage() {
     }
   };
 
+  const handleQuickBooksDisconnect = async () => {
+    if (!confirm("Are you sure you want to disconnect QuickBooks? You will need to re-authorize to sync documents.")) return;
+    
+    setIsDisconnectingQb(true);
+    try {
+      await disconnectQuickBooks();
+      setQbConnected(false);
+      setQbStatusMessage("QuickBooks disconnected successfully.");
+    } catch (err) {
+      setQbStatusMessage("Failed to disconnect QuickBooks.");
+    } finally {
+      setIsDisconnectingQb(false);
+    }
+  };
+
   if (!isAuthenticated) return null;
 
   return (
@@ -422,6 +438,7 @@ export default function AccountPage() {
               {qbStatusMessage}
             </div>
           )}
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
@@ -443,9 +460,17 @@ export default function AccountPage() {
 
             {currentPlan === "pro" ? (
               qbConnected ? (
-                <span className="text-xs font-medium px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Active
-                </span>
+                <button
+                  onClick={handleQuickBooksDisconnect}
+                  disabled={isDisconnectingQb}
+                  className={`text-xs font-medium px-4 py-2 rounded-lg transition-colors border ${
+                    isDark 
+                      ? "border-red-500/20 text-red-400 hover:bg-red-500/10" 
+                      : "border-red-200 text-red-600 hover:bg-red-50"
+                  }`}
+                >
+                  {isDisconnectingQb ? "Disconnecting..." : "Disconnect"}
+                </button>
               ) : (
                 <button
                   onClick={handleQuickBooksConnect}

@@ -231,3 +231,13 @@ export async function syncToQuickBooks(documentId: string): Promise<void> {
     throw new Error(data.detail || "Failed to sync to QuickBooks");
   }
 }
+
+export async function disconnectQuickBooks(): Promise<void> {
+  const res = await authFetch(`${API_URL}/quickbooks/disconnect`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Failed to disconnect QuickBooks");
+  }
+}
