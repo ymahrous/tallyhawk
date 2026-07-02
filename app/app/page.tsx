@@ -14,6 +14,8 @@ import {
 } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/app/providers/ThemeContext";
+import UsageMeter from "@/components/ui/UsageMeter";
+import UpgradePrompt from "@/components/ui/UpgradePrompt";
 
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -91,6 +93,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const [limitError, setLimitError] = useState(false);
 
   // ── Auth ──
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -143,10 +146,13 @@ export default function DashboardPage() {
         (d) => d.status === "COMPLETED" || d.status === "FAILED"
       );
       backoffRef.current = allTerminal ? 30000 : 3000;
-    } catch (e) {
-      if (e instanceof Error && e.name === "AbortError") return;
-      // On error, back off up to 30 seconds
-      backoffRef.current = Math.min(backoffRef.current * 2, 30000);
+    } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Something went wrong";
+        if (errorMessage === "limit_exceeded") {
+          setLimitError(true);
+        } else {
+          alert(errorMessage);
+        }
     }
   }, []);
 
@@ -223,6 +229,8 @@ export default function DashboardPage() {
 
   // ── Upload ──
   const handleUpload = async (file: File) => {
+    setLimitError(false);
+    setIsUploading(true);
     setUploadError("");
     const validationError = validateFile(file);
     if (validationError) {
@@ -316,7 +324,7 @@ export default function DashboardPage() {
   return (
     <div className={`min-h-screen pb-20 ${isDark ? "bg-black" : "bg-gray-50"}`}>
       <div className="max-w-5xl mx-auto px-6 pt-24">
-
+        
         {/* Header */}
         <div className="mb-12">
           <h1 className={`text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
@@ -325,15 +333,15 @@ export default function DashboardPage() {
           <p className={`text-sm mt-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
             Upload invoices to extract structured data via AI.
           </p>
-          {isFreePlan && usageData && (
-            <div className={`mt-4 inline-flex flex-wrap items-center gap-2 rounded-full border px-3 py-2 text-xs ${
-              isDark ? "border-white/10 bg-white/5 text-gray-300" : "border-gray-200 bg-white text-gray-700"
-            }`}>
-              <span>Documents processed this month: {usageData.documents_processed}</span>
-              <span className={isDark ? "text-gray-600" : "text-gray-300"}>•</span>
-              <span>Remaining processings: {remainingProcessings}</span>
-            </div>
-          )}
+          <div className="mt-4">
+            <UsageMeter />
+            {limitError && (
+              <UpgradePrompt 
+                title="Free Tier Limit Reached"
+                message="You've used all 10 of your monthly document uploads. Upgrade to Pro for unlimited processing, QuickBooks sync, and more."
+              />
+            )}
+          </div>
         </div>
 
         {/* Upload Zone */}

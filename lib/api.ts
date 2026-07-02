@@ -151,7 +151,16 @@ export async function uploadDocument(file: File): Promise<Document> {
     method: "POST",
     body: formData,
   });
-  if (!res.ok) throw new Error("Upload failed");
+  
+  if (!res.ok) {
+    // Try to extract the specific error detail from the backend
+    const errorData = await res.json().catch(() => ({}));
+    if (errorData.detail && errorData.detail.error === "limit_exceeded") {
+      throw new Error("limit_exceeded");
+    }
+    throw new Error(errorData.detail || "Upload failed");
+  }
+  
   return res.json();
 }
 
