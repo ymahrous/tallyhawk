@@ -31,6 +31,19 @@ export type TokenPayload = {
   [key: string]: unknown;
 };
 
+export interface SubscriptionData {
+  plan: string;
+  status: string;
+  current_period_end: string | null;
+  last_renewal_date: string | null;
+}
+
+export async function getSubscription(): Promise<SubscriptionData> {
+  const res = await authFetch(`${API_URL}/billing/subscription`);
+  if (!res.ok) throw new Error("Failed to fetch subscription");
+  return res.json();
+}
+
 export function decodeToken(): TokenPayload | null {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   if (!token) return null;

@@ -4,7 +4,7 @@ Allow: /signup
 Allow: /privacy
 Allow: /terms
 Disallow: /app
-Disallow: /profile
+Disallow: /account
 Disallow: /login
 
 Sitemap: https://edocai.vercel.app/sitemap.xml

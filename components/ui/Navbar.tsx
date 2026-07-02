@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { logout } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useTheme } from "@/app/providers/ThemeContext";
@@ -57,13 +56,9 @@ export default function Navbar() {
           className="flex items-center gap-3 cursor-pointer"
           onClick={() => router.push("/")}
         >
-          <Image
-            src="/logo.svg"
-            alt="edocAI"
-            width={80}
-            height={24}
-            style={{ width: "auto", height: "24px" }}
-          />
+          <span className={`text-lg font-semibold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
+            edocAI
+          </span>
         </div>
 
         {/* Desktop Right Side */}
@@ -107,9 +102,9 @@ export default function Navbar() {
                 </button>
               )}
 
-              {pathname !== "/profile" && (
-                <button onClick={() => router.push("/profile")} className={navLinkClass("/profile")}>
-                  Profile
+              {pathname !== "/account" && (
+                <button onClick={() => router.push("/account")} className={navLinkClass("/account")}>
+                  Account
                 </button>
               )}
 
@@ -190,8 +185,8 @@ export default function Navbar() {
                 Dashboard
               </button>
 
-              <button onClick={() => router.push("/profile")} className={navLinkClass("/profile")}>
-                Profile
+              <button onClick={() => router.push("/account")} className={navLinkClass("/account")}>
+                Account
               </button>
 
               <button onClick={handleLogout} className={navLinkClass("")}>

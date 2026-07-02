@@ -5,5 +5,5 @@
   <rect x="4" y="13" width="16" height="2" rx="1" fill="white" opacity="0.6"/>
   <rect x="4" y="18" width="10" height="2" rx="1" fill="white" opacity="0.4"/>
   <!-- Wordmark -->
-  <text x="32" y="22" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="600" fill="currentColor">edocAI</text>
+  <!-- <text x="32" y="22" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="600" fill="currentColor">edocAI</text> -->
 </svg>

@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { usePlan } from "../providers/PlanContext";
 import { useTheme } from "@/app/providers/ThemeContext";
-import { logout, decodeToken, isTokenExpired, getUsage } from "@/lib/api";
+import { logout, decodeToken, isTokenExpired } from "@/lib/api";
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
-
 function SectionCard({
   title,
   description,
@@ -117,18 +117,19 @@ function InputField({
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
-
-export default function ProfilePage() {
+export default function AccountPage() {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  
+  // ADDED currentPeriodEnd and lastRenewalDate
+  const { plan: currentPlan, currentPeriodEnd, lastRenewalDate } = usePlan();
 
   // ── Auth guard ──
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accountEmail, setAccountEmail] = useState("");
   const [memberSince, setMemberSince] = useState("");
   const [sessionExpiry, setSessionExpiry] = useState("");
-  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (isTokenExpired()) {
@@ -156,18 +157,6 @@ export default function ProfilePage() {
 
     const expDate = new Date(payload.exp * 1000);
     setSessionExpiry(expDate.toLocaleString());
-
-    // Fetch real-time plan from backend
-    const fetchPlan = async () => {
-      try {
-        const usage = await getUsage();
-        setCurrentPlan(usage.plan);
-      } catch {
-        // Fallback to JWT if API fails
-        if (payload.plan) setCurrentPlan(payload.plan);
-      }
-    };
-    fetchPlan();
 
   }, [router]);
 
@@ -275,7 +264,7 @@ export default function ProfilePage() {
             Account
           </h1>
           <p className={`text-sm mt-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-            Manage your profile and account settings.
+            Manage your account settings.
           </p>
         </div>
 
@@ -303,10 +292,10 @@ export default function ProfilePage() {
           </div>
         </SectionCard>
 
-        {/* Subscription & Plan - NEW */}
+        {/* Subscription & Plan */}
         <SectionCard
           title="Subscription & Plan"
-          description="Your current pricing tier and benefits."
+          description="Your current pricing tier and billing cycle."
           isDark={isDark}
         >
           <div className="flex items-center justify-between">
@@ -330,15 +319,39 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {currentPlan !== "pro" && (
+            {currentPlan !== "pro" ? (
               <button
                 onClick={() => router.push("/pricing")}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 Upgrade
               </button>
+            ) : (
+              <span className="text-xs font-medium px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Active
+              </span>
             )}
           </div>
+
+          {/* Billing Dates Section */}
+          {currentPlan === "pro" && (
+            <div className={`mt-6 pt-6 border-t space-y-3 ${
+              isDark ? "border-white/10" : "border-gray-200"
+            }`}>
+              <InputField
+                label="Last Renewal"
+                value={lastRenewalDate ? new Date(lastRenewalDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "N/A"}
+                disabled
+                isDark={isDark}
+              />
+              {/* <InputField
+                label="Next Renewal"
+                value={currentPeriodEnd ? new Date(currentPeriodEnd).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "N/A"}
+                disabled
+                isDark={isDark}
+              /> */}
+            </div>
+          )}
         </SectionCard>
 
         {/* Session Info */}

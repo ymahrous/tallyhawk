@@ -5,6 +5,7 @@ import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider, themeScript } from "./providers/ThemeContext";
+import { PlanProvider } from "./providers/PlanContext";
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -41,21 +42,23 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body className={`${inter.className} ${jetbrainsMono.className} antialiased`}>
         <ThemeProvider>
-          <header>
-            <Suspense fallback={null}>
-              <Navbar />
-            </Suspense>
-          </header>
-          <div className="min-h-screen flex flex-col">
-            <main className="grow">
+          <PlanProvider>
+            <header>
               <Suspense fallback={null}>
-                {children}
+                <Navbar />
               </Suspense>
-            </main>
-            <Suspense fallback={null}>
-              <Footer />
-            </Suspense>
-          </div>
+            </header>
+            <div className="min-h-screen flex flex-col">
+              <main className="grow">
+                <Suspense fallback={null}>
+                  {children}
+                </Suspense>
+              </main>
+              <Suspense fallback={null}>
+                <Footer />
+              </Suspense>
+            </div>
+          </PlanProvider>
         </ThemeProvider>
       </body>
       <Analytics />

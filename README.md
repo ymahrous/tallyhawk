@@ -72,8 +72,8 @@ edocai/
 │   ├── signup/
 │   │   ├── page.tsx
 │   │   └── layout.tsx
-│   ├── profile/
-│   │   ├── page.tsx             # Account settings, password change
+│   ├── account/
+│   │   ├── page.tsx             # Account settings
 │   │   └── layout.tsx
 │   ├── privacy/
 │   │   ├── page.tsx
