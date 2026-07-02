@@ -11,11 +11,13 @@ import {
   Extraction,
   UsageData,
   isTokenExpired,
+  getQuickBooksStatus,
 } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/app/providers/ThemeContext";
 import UsageMeter from "@/components/ui/UsageMeter";
 import UpgradePrompt from "@/components/ui/UpgradePrompt";
+import SyncButton from "@/components/ui/SyncButton";
 
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -98,6 +100,7 @@ export default function DashboardPage() {
   // ── Auth ──
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [qbConnected, setQbConnected] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -310,6 +313,22 @@ export default function DashboardPage() {
   // ── Pagination ──
   const totalPages = Math.ceil(completedDocs.length / PAGE_SIZE);
   const paginatedDocs = completedDocs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const docs = await getDocuments();
+        setDocuments(docs);
+        
+        // Fetch QuickBooks connection status on load
+        const qbStatus = await getQuickBooksStatus();
+        setQbConnected(qbStatus.connected);
+      } catch (err) {
+        console.error("Failed to load dashboard data");
+      }
+    };
+    fetchDashboardData();
+  }, []);
 
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -591,6 +610,45 @@ export default function DashboardPage() {
               )}
             </>
           )}
+
+          {/* DOCUMENTS LIST / TABLE */}
+          <div className="space-y-3">
+            {documents.map((doc: { id: string; filename: string; created_at: string; status: string }) => (
+              <div 
+                key={doc.id} 
+                className={`flex items-center justify-between rounded-xl border p-4 ${
+                  isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-200"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  {/* Document Icon */}
+                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                    isDark ? "bg-white/10" : "bg-gray-100"
+                  }`}>
+                    <svg className={`w-5 h-5 ${isDark ? "text-gray-400" : "text-gray-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                  </div>
+                  
+                  {/* Document Info */}
+                  <div>
+                    <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                      {doc.filename}
+                    </p>
+                    <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                      {new Date(doc.created_at).toLocaleDateString()} &middot; {doc.status}
+                    </p>
+                  </div>
+                </div>
+
+                {/* --- ADD THE SYNC BUTTON HERE --- */}
+                {doc.status === "COMPLETED" && (
+                  <SyncButton documentId={doc.id} qbConnected={qbConnected} />
+                )}
+
+              </div>
+            ))}
+          </div>
         </div>
 
       </div>
