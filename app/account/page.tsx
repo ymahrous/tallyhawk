@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { usePlan } from "../providers/PlanContext";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { logout, decodeToken, isTokenExpired } from "@/lib/api";
@@ -122,6 +122,7 @@ export default function AccountPage() {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const searchParams = useSearchParams();
   
   // ADDED currentPeriodEnd and lastRenewalDate
   const { plan: currentPlan, currentPeriodEnd, lastRenewalDate } = usePlan();
@@ -139,6 +140,7 @@ export default function AccountPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [qbConnected, setQbConnected] = useState(false);
   const [isConnectingQb, setIsConnectingQb] = useState(false);
+  const [qbStatusMessage, setQbStatusMessage] = useState("");
 
   useEffect(() => {
     if (isTokenExpired()) {
@@ -225,6 +227,21 @@ export default function AccountPage() {
 
   // quickbooks integration status check
   useEffect(() => {
+    if (isTokenExpired()) { router.push("/login"); return; }
+    const payload = decodeToken();
+    if (!payload) { router.push("/login"); return; }
+
+    setIsAuthenticated(true);
+    setAccountEmail(payload.sub);
+
+    const iat = (payload as { sub: string; exp: number; iat?: number }).iat;
+    if (iat) {
+      setMemberSince(new Date(iat * 1000).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }));
+    }
+    const expDate = new Date(payload.exp * 1000);
+    setSessionExpiry(expDate.toLocaleString());
+
+    // Fetch QuickBooks Status
     const fetchQbStatus = async () => {
       try {
         const status = await getQuickBooksStatus();
@@ -232,13 +249,24 @@ export default function AccountPage() {
       } catch {}
     };
     fetchQbStatus();
-  }, []);
+
+    // --- CHECK FOR QB CALLBACK MESSAGES ---
+    if (searchParams.get("qb_success") === "true") {
+      setQbStatusMessage("QuickBooks connected successfully!");
+      setQbConnected(true); // Optimistically update UI
+      // Clean URL without reloading
+      router.replace("/profile"); 
+    } else if (searchParams.get("qb_error")) {
+      setQbStatusMessage("Failed to connect QuickBooks. Please try again.");
+      router.replace("/profile");
+    }
+  }, [router, searchParams]);
 
   const handleQuickBooksConnect = async () => {
     setIsConnectingQb(true);
     try {
       const { url } = await getQuickBooksConnectUrl();
-      window.location.href = url; // Redirect to Intuit login
+      window.location.href = url; 
     } catch (err) {
       alert("Failed to initiate QuickBooks connection.");
     } finally {
@@ -385,6 +413,15 @@ export default function AccountPage() {
           description="Connect third-party services to automate your workflow."
           isDark={isDark}
         >
+          {qbStatusMessage && (
+            <div className={`mb-4 text-sm px-4 py-2 rounded-lg ${
+              qbStatusMessage.includes("successfully") 
+                ? "text-emerald-500 bg-emerald-500/10" 
+                : "text-red-500 bg-red-500/10"
+            }`}>
+              {qbStatusMessage}
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
