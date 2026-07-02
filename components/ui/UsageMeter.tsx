@@ -27,7 +27,7 @@ export default function UsageMeter() {
           </div>
         </div>
         <button 
-          onClick={() => router.push("/profile")}
+          onClick={() => router.push("/account")}
           className={`text-xs font-medium transition-colors ${isDark ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"}`}
         >
           Manage →

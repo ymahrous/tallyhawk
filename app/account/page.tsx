@@ -255,10 +255,10 @@ export default function AccountPage() {
       setQbStatusMessage("QuickBooks connected successfully!");
       setQbConnected(true); // Optimistically update UI
       // Clean URL without reloading
-      router.replace("/profile"); 
+      router.replace("/account"); 
     } else if (searchParams.get("qb_error")) {
       setQbStatusMessage("Failed to connect QuickBooks. Please try again.");
-      router.replace("/profile");
+      router.replace("/account");
     }
   }, [router, searchParams]);
 
