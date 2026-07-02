@@ -310,10 +310,6 @@ export default function DashboardPage() {
   // ── Pagination ──
   const totalPages = Math.ceil(completedDocs.length / PAGE_SIZE);
   const paginatedDocs = completedDocs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const isFreePlan = usageData?.plan !== "pro";
-  const remainingProcessings = usageData
-    ? Math.max(usageData.limit - usageData.documents_processed, 0)
-    : 0;
 
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center">
