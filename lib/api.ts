@@ -6,6 +6,7 @@ export interface Document {
   s3_url: string;
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   created_at: string;
+  quickbooks_synced: boolean;
 }
 
 interface AuthResponse {
@@ -240,4 +241,10 @@ export async function disconnectQuickBooks(): Promise<void> {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.detail || "Failed to disconnect QuickBooks");
   }
+}
+
+export async function checkQuickBooksSyncStatus(documentId: string): Promise<{ synced: boolean }> {
+  const res = await authFetch(`${API_URL}/quickbooks/sync-status/${documentId}`);
+  if (!res.ok) return { synced: false };
+  return res.json();
 }

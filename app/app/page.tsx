@@ -613,7 +613,7 @@ export default function DashboardPage() {
 
           {/* DOCUMENTS LIST / TABLE */}
           <div className="space-y-3">
-            {documents.map((doc: { id: string; filename: string; created_at: string; status: string }) => (
+            {documents.map((doc: { id: string; filename: string; created_at: string; status: string; quickbooks_synced: boolean; }) => (
               <div 
                 key={doc.id} 
                 className={`flex items-center justify-between rounded-xl border p-4 ${
@@ -640,12 +640,9 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 </div>
-
-                {/* --- ADD THE SYNC BUTTON HERE --- */}
                 {doc.status === "COMPLETED" && (
-                  <SyncButton documentId={doc.id} qbConnected={qbConnected} />
+                  <SyncButton documentId={doc.id} qbConnected={qbConnected} initialSyncedStatus={doc.quickbooks_synced} />
                 )}
-
               </div>
             ))}
           </div>
