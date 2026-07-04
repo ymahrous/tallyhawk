@@ -6,10 +6,8 @@ import {
   getDocuments,
   getExtraction,
   deleteDocument,
-  getUsage,
   Document,
   Extraction,
-  UsageData,
   isTokenExpired,
   getQuickBooksStatus,
 } from "@/lib/api";
