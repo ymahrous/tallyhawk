@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { exportTaxSummary } from "@/lib/api";
 import { usePlan } from "../providers/PlanContext";
 import { useTheme } from "@/app/providers/ThemeContext";
-import { logout, decodeToken, isTokenExpired, disconnectQuickBooks } from "@/lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getQuickBooksConnectUrl, getQuickBooksStatus } from "@/lib/api";
+import { logout, decodeToken, isTokenExpired, disconnectQuickBooks } from "@/lib/api";
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 function SectionCard({
@@ -142,6 +143,18 @@ export default function AccountPage() {
   const [isConnectingQb, setIsConnectingQb] = useState(false);
   const [qbStatusMessage, setQbStatusMessage] = useState("");
   const [isDisconnectingQb, setIsDisconnectingQb] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportYear, setExportYear] = useState(new Date().getFullYear());
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      await exportTaxSummary(exportYear);
+    } catch {
+      alert("Failed to export tax summary.");
+    }
+    setIsExporting(false);
+  };
 
   useEffect(() => {
     if (isTokenExpired()) {
@@ -422,6 +435,38 @@ export default function AccountPage() {
             </div>
           )}
         </SectionCard>
+
+        {/* Tax Export - PRO ONLY */}
+        {currentPlan === "pro" && (
+          <SectionCard
+            title="Tax Export"
+            description="Download a CSV summary of your categorized spend for your accountant."
+            isDark={isDark}
+          >
+            <div className="flex items-center gap-4">
+              <select
+                value={exportYear}
+                onChange={(e) => setExportYear(Number(e.target.value))}
+                className={`text-sm px-3 py-2 rounded-lg border outline-none ${
+                  isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
+                }`}
+              >
+                {/* DYNAMIC YEARS */}
+                {[0, 1, 2, 3, 4, 5].map((i) => {
+                  const y = new Date().getFullYear() - i;
+                  return <option key={y} value={y}>{y}</option>;
+                })}
+              </select>
+              <button
+                onClick={handleExport}
+                disabled={isExporting}
+                className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                {isExporting ? "Exporting..." : "Export CSV"}
+              </button>
+            </div>
+          </SectionCard>
+        )}
 
         {/* Integrations */}
         <SectionCard

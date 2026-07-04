@@ -20,8 +20,10 @@ export interface Extraction {
     vendor: string;
     total_amount: string;
     date: string;
+    category?: string;
   };
   confidence_score: number;
+  category?: string;
 }
 
 export type TokenPayload = {
@@ -175,6 +177,30 @@ export async function getExtraction(documentId: string): Promise<Extraction> {
   const res = await authFetch(`${API_URL}/extraction/${documentId}`);
   if (!res.ok) throw new Error("Extraction not ready");
   return res.json();
+}
+
+export async function updateCategory(documentId: string, category: string): Promise<void> {
+  const res = await authFetch(`${API_URL}/extraction/${documentId}/category`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ category }),
+  });
+  if (!res.ok) throw new Error("Failed to update category");
+}
+
+export async function exportTaxSummary(year: number): Promise<void> {
+  const res = await authFetch(`${API_URL}/reports/tax-summary?year=${year}`);
+  if (!res.ok) throw new Error("Failed to export tax summary");
+  
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `edocAI_Tax_Summary_${year}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 export async function deleteDocument(documentId: string): Promise<void> {

@@ -16,6 +16,7 @@ import { useTheme } from "@/app/providers/ThemeContext";
 import UsageMeter from "@/components/ui/UsageMeter";
 import UpgradePrompt from "@/components/ui/UpgradePrompt";
 import SyncButton from "@/components/ui/SyncButton";
+import CategoryPage from "@/components/ui/CategoryPage";
 
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -141,18 +142,16 @@ export default function DashboardPage() {
       const docs = await getDocuments(controllerRef.current.signal);
       setDocuments(docs);
 
-      // If all docs are terminal, slow down polling
       const allTerminal = docs.every(
         (d) => d.status === "COMPLETED" || d.status === "FAILED"
       );
       backoffRef.current = allTerminal ? 30000 : 3000;
     } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : "Something went wrong";
-        if (errorMessage === "limit_exceeded") {
-          setLimitError(true);
-        } else {
-          alert(errorMessage);
-        }
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      const errorMessage = err instanceof Error ? err.message : "Something went wrong";
+      if (errorMessage === "limit_exceeded") {
+        setLimitError(true);
+      }
     }
   }, []);
 
@@ -206,6 +205,20 @@ export default function DashboardPage() {
     });
   }, [documents, isAuthenticated, extractions]);
 
+  // Fetch QB Status
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchDashboardData = async () => {
+      try {
+        const qbStatus = await getQuickBooksStatus();
+        setQbConnected(qbStatus.connected);
+      } catch (err) {
+        console.error("Failed to load QB status");
+      }
+    };
+    fetchDashboardData();
+  }, [isAuthenticated]);
+
   // ── File validation ──
   const validateFile = (file: File): string => {
     if (!ACCEPTED_TYPES.includes(file.type)) {
@@ -220,7 +233,6 @@ export default function DashboardPage() {
   // ── Upload ──
   const handleUpload = async (file: File) => {
     setLimitError(false);
-    setIsUploading(true);
     setUploadError("");
     const validationError = validateFile(file);
     if (validationError) {
@@ -231,7 +243,6 @@ export default function DashboardPage() {
     setIsUploading(true);
     setUploadProgress(0);
 
-    // Simulate progress in thirds while the real request is in flight
     const progressInterval = setInterval(() => {
       setUploadProgress((prev) => (prev < 80 ? prev + 10 : prev));
     }, 200);
@@ -239,10 +250,14 @@ export default function DashboardPage() {
     try {
       await uploadDocument(file);
       setUploadProgress(100);
-      const docs = await getDocuments();
-      setDocuments(docs);
-    } catch {
-      setUploadError("Upload failed. Please try again.");
+      await fetchDocs();
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Something went wrong";
+      if (errorMessage === "limit_exceeded") {
+        setLimitError(true);
+      } else {
+        setUploadError("Upload failed. Please try again.");
+      }
     } finally {
       clearInterval(progressInterval);
       setTimeout(() => {
@@ -250,6 +265,24 @@ export default function DashboardPage() {
         setUploadProgress(0);
       }, 600);
     }
+  };
+
+  // ── Category Update (Optimistic UI) ──
+  const handleCategoryUpdate = (documentId: string, newCategory: string) => {
+    setExtractions((prev) => {
+      const next = { ...prev };
+      if (next[documentId]) {
+        next[documentId] = {
+          ...next[documentId],
+          category: newCategory, // Update the top-level category
+          extracted_data: {
+            ...next[documentId].extracted_data,
+            category: newCategory // Also update it inside the JSON payload
+          }
+        };
+      }
+      return next;
+    });
   };
 
   // ── Drag and drop ──
@@ -301,22 +334,6 @@ export default function DashboardPage() {
   const totalPages = Math.ceil(completedDocs.length / PAGE_SIZE);
   const paginatedDocs = completedDocs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const docs = await getDocuments();
-        setDocuments(docs);
-        
-        // Fetch QuickBooks connection status on load
-        const qbStatus = await getQuickBooksStatus();
-        setQbConnected(qbStatus.connected);
-      } catch (err) {
-        console.error("Failed to load dashboard data");
-      }
-    };
-    fetchDashboardData();
-  }, []);
-
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full" />
@@ -338,10 +355,12 @@ export default function DashboardPage() {
           <div className="mt-4">
             <UsageMeter />
             {limitError && (
-              <UpgradePrompt 
-                title="Free Tier Limit Reached"
-                message="You've used all 10 of your monthly document uploads. Upgrade to Pro for unlimited processing, QuickBooks sync, and more."
-              />
+              <div className="mt-4">
+                <UpgradePrompt 
+                  title="Free Tier Limit Reached"
+                  message="You've used all 10 of your monthly document uploads. Upgrade to Pro for unlimited processing, QuickBooks sync, and more."
+                />
+              </div>
             )}
           </div>
         </div>
@@ -408,11 +427,7 @@ export default function DashboardPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
             <p className="text-sm text-red-500">{uploadError}</p>
-            <button
-              onClick={() => setUploadError("")}
-              className="ml-auto text-red-400 hover:text-red-300"
-              aria-label="Dismiss error"
-            >
+            <button onClick={() => setUploadError("")} className="ml-auto text-red-400 hover:text-red-300" aria-label="Dismiss error">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -427,11 +442,7 @@ export default function DashboardPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
             <p className="text-sm text-red-500">{deleteError}</p>
-            <button
-              onClick={() => setDeleteError("")}
-              className="ml-auto text-red-400 hover:text-red-300"
-              aria-label="Dismiss error"
-            >
+            <button onClick={() => setDeleteError("")} className="ml-auto text-red-400 hover:text-red-300" aria-label="Dismiss error">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -509,56 +520,58 @@ export default function DashboardPage() {
           ) : (
             <>
               <div className={`divide-y ${isDark ? "divide-white/10" : "divide-gray-100"}`}>
-                {paginatedDocs.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className={`p-8 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-gray-50"}`}
-                  >
-                    <div className="flex flex-col md:flex-row md:items-start gap-8">
+                {paginatedDocs.map((doc) => {
+                  const ext = extractions[doc.id];
+                  return (
+                    <div
+                      key={doc.id}
+                      className={`p-6 md:p-8 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-gray-50"}`}
+                    >
+                      <div className="flex flex-col gap-6">
 
-                      {/* Left — filename + status + delete */}
-                      <div className="md:w-1/3 min-w-0 flex flex-col gap-3">
-                        <p className={`text-sm font-medium truncate ${
-                          isDark ? "text-gray-200" : "text-gray-900"
-                        }`}>
-                          {doc.filename}
-                        </p>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 ring-1 ring-inset ring-emerald-500/30 w-fit">
-                          COMPLETED
-                        </span>
-                        <button
-                          onClick={() => handleDelete(doc.id)}
-                          disabled={deletingIds.has(doc.id)}
-                          className={`flex items-center gap-1.5 text-xs transition-colors w-fit ${
-                            isDark
-                              ? "text-gray-600 hover:text-red-400"
-                              : "text-gray-400 hover:text-red-500"
-                          }`}
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
-                          {deletingIds.has(doc.id) ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
+                        {/* Top Row: Filename, Category, Actions */}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm font-medium truncate ${isDark ? "text-gray-200" : "text-gray-900"}`}>
+                              {doc.filename}
+                            </p>
+                            <p className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                              {new Date(doc.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
 
-                      {/* Right — extracted JSON */}
-                      <div className="md:w-2/3 bg-black/80 rounded-xl p-5 border border-white/5">
-                        {extractions[doc.id] ? (
-                          <pre className="text-emerald-400 font-mono text-xs leading-loose overflow-x-auto">
-                            {JSON.stringify(extractions[doc.id].extracted_data, null, 2)}
-                          </pre>
-                        ) : (
-                          <div className="flex items-center gap-2 text-gray-600 text-xs">
-                            <div className="animate-spin h-3 w-3 border-2 border-gray-600 border-t-transparent rounded-full" />
-                            Analyzing...
+                          <div className="flex items-center gap-3 shrink-0">
+                            {ext && <CategoryPage documentId={doc.id} currentCategory={ext.category} onCategoryUpdate={handleCategoryUpdate} />}
+                            <SyncButton documentId={doc.id} qbConnected={qbConnected} initialSyncedStatus={doc.quickbooks_synced} />
+                            
+                            <button
+                              onClick={() => handleDelete(doc.id)}
+                              disabled={deletingIds.has(doc.id)}
+                              className={`p-1.5 rounded-lg transition-colors ${
+                                isDark ? "hover:bg-white/10 text-gray-600 hover:text-red-400" : "hover:bg-gray-100 text-gray-400 hover:text-red-500"
+                              }`}
+                              aria-label="Delete"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Bottom Row: Extracted JSON */}
+                        {ext && (
+                          <div className="bg-black/80 rounded-xl p-5 border border-white/5">
+                            <pre className="text-emerald-400 font-mono text-xs leading-loose overflow-x-auto">
+                              {JSON.stringify(ext.extracted_data, null, 2)}
+                            </pre>
                           </div>
                         )}
-                      </div>
 
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Pagination */}
@@ -574,9 +587,7 @@ export default function DashboardPage() {
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={page === 1}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                        isDark
-                          ? "bg-white/5 hover:bg-white/10 text-gray-300"
-                          : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        isDark ? "bg-white/5 hover:bg-white/10 text-gray-300" : "bg-gray-100 hover:bg-gray-200 text-gray-700"
                       }`}
                     >
                       Previous
@@ -585,9 +596,7 @@ export default function DashboardPage() {
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                       disabled={page === totalPages}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                        isDark
-                          ? "bg-white/5 hover:bg-white/10 text-gray-300"
-                          : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        isDark ? "bg-white/5 hover:bg-white/10 text-gray-300" : "bg-gray-100 hover:bg-gray-200 text-gray-700"
                       }`}
                     >
                       Next
@@ -597,42 +606,6 @@ export default function DashboardPage() {
               )}
             </>
           )}
-
-          {/* DOCUMENTS LIST / TABLE */}
-          <div className="space-y-3">
-            {documents.map((doc: { id: string; filename: string; created_at: string; status: string; quickbooks_synced: boolean; }) => (
-              <div 
-                key={doc.id} 
-                className={`flex items-center justify-between rounded-xl border p-4 ${
-                  isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-200"
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  {/* Document Icon */}
-                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
-                    isDark ? "bg-white/10" : "bg-gray-100"
-                  }`}>
-                    <svg className={`w-5 h-5 ${isDark ? "text-gray-400" : "text-gray-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                  </div>
-                  
-                  {/* Document Info */}
-                  <div>
-                    <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
-                      {doc.filename}
-                    </p>
-                    <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-                      {new Date(doc.created_at).toLocaleDateString()} &middot; {doc.status}
-                    </p>
-                  </div>
-                </div>
-                {doc.status === "COMPLETED" && (
-                  <SyncButton documentId={doc.id} qbConnected={qbConnected} initialSyncedStatus={doc.quickbooks_synced} />
-                )}
-              </div>
-            ))}
-          </div>
         </div>
 
       </div>
