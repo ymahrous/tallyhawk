@@ -115,7 +115,6 @@ export default function DashboardPage() {
   // ── Documents ──
   const [documents, setDocuments] = useState<Document[]>([]);
   const [extractions, setExtractions] = useState<Record<string, Extraction>>({});
-  const [usageData, setUsageData] = useState<UsageData | null>(null);
   const fetchingIdsRef = useRef<Set<string>>(new Set());
 
   // ── Upload ──
@@ -161,16 +160,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-
-    const fetchUsage = async () => {
-      try {
-        setUsageData(await getUsage());
-      } catch {
-        setUsageData(null);
-      }
-    };
-
-    fetchUsage();
 
     const schedule = () => {
       fetchDocs().then(() => {
