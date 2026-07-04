@@ -22,7 +22,7 @@ export default function Footer() {
               </span>
             </div>
             <p className={`text-sm leading-relaxed ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-              AI-powered Document Processing Intelligence.
+              AI-powered financial document automation.
             </p>
           </div>
 
@@ -33,17 +33,16 @@ export default function Footer() {
               <li><Link href="/app" className={`text-sm transition-colors ${isDark ? "text-gray-500 hover:text-white" : "text-gray-400 hover:text-gray-900"}`}>Dashboard</Link></li>
               <li><Link href="/#features" className={`text-sm transition-colors ${isDark ? "text-gray-500 hover:text-white" : "text-gray-400 hover:text-gray-900"}`}>Features</Link></li>
               <li><Link href="/pricing" className={`text-sm transition-colors ${isDark ? "text-gray-500 hover:text-white" : "text-gray-400 hover:text-gray-900"}`}>Pricing</Link></li>
-              <li><Link href="/docs" className={`text-sm transition-colors ${isDark ? "text-gray-500 hover:text-white" : "text-gray-400 hover:text-gray-900"}`}>Docs</Link></li>
             </ul>
           </div>
 
-          {/* Stack Links */}
+          {/* Integrations Links (Replaces Stack) */}
           <div>
-            <h4 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Stack</h4>
+            <h4 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Integrations</h4>
             <ul className="space-y-3">
-              <li><span className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>Next.js</span></li>
-              <li><span className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>FastAPI</span></li>
-              <li><span className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>Celery & Redis</span></li>
+              <li><span className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>QuickBooks Online</span></li>
+              <li><span className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>Tax CSV Export</span></li>
+              <li><span className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>Mobile Capture</span></li>
               <li><span className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>Google Gemini</span></li>
             </ul>
           </div>
@@ -75,7 +74,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Yousef Mahrous. All rights reserved.
           </p>
           <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>
-            Designed & built as an ML System portfolio project.
+            Built for freelancers, by a freelancer.
           </p>
         </div>
       </div>

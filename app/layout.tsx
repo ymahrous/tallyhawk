@@ -13,21 +13,17 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jet
 
 export const metadata: Metadata = {
   title: {
-    default: "edocAI - AI Document Processing",
+    default: "edocAI",
     template: "%s | edocAI",
   },
   description: "Instantly transform unstructured invoices and receipts into structured JSON using AI. Built with FastAPI, Celery, and Google Gemini.",
   keywords: ["AI", "Machine Learning", "Document Extraction", "OCR", "FastAPI", "Next.js"],
-  icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-  },
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "https://edocai.vercel.app",
     siteName: "edocAI",
-    title: "edocAI - AI Document Processing",
+    title: "edocAI",
     description: "Instantly transform unstructured invoices and receipts into structured JSON.",
   },
   robots: { index: true, follow: true },
