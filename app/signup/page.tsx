@@ -146,9 +146,6 @@ export default function SignupPage() {
       }`}>
         {/* Header */}
         <div className="text-center mb-10">
-          {/* <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-600 mb-6 shadow-lg shadow-indigo-500/30">
-            <span className="text-white font-bold text-lg">E</span>
-          </div> */}
           <h1 className={`text-2xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
             Create your account
           </h1>
@@ -169,8 +166,8 @@ export default function SignupPage() {
               }}
               className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors placeholder:text-opacity-40 ${
                 isDark 
-                  ? "border-gray-700 text-white focus:border-indigo-500 placeholder-gray-500" 
-                  : "border-gray-200 text-gray-900 focus:border-indigo-500 placeholder-gray-400"
+                  ? "border-gray-700 text-white focus:border-white placeholder-gray-500" 
+                  : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
               }`}
               placeholder="Email address"
               required
@@ -193,8 +190,8 @@ export default function SignupPage() {
               }}
               className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors placeholder:text-opacity-40 pr-10 ${
                 isDark
-                  ? "border-gray-700 text-white focus:border-indigo-500 placeholder-gray-500"
-                  : "border-gray-200 text-gray-900 focus:border-indigo-500 placeholder-gray-400"
+                  ? "border-gray-700 text-white focus:border-white placeholder-gray-500"
+                  : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
               }`}
               placeholder="Password"
               required
@@ -248,8 +245,8 @@ export default function SignupPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors placeholder:text-opacity-40 ${
                 isDark
-                  ? "border-gray-700 text-white focus:border-indigo-500 placeholder-gray-500"
-                  : "border-gray-200 text-gray-900 focus:border-indigo-500 placeholder-gray-400"
+                  ? "border-gray-700 text-white focus:border-white placeholder-gray-500"
+                  : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
               }`}
               placeholder="Confirm password"
               required
@@ -268,17 +265,17 @@ export default function SignupPage() {
               id="terms"
               checked={agreedToTerms}
               onChange={(e) => setAgreedToTerms(e.target.checked)}
-              className="mt-0.5 accent-indigo-600 cursor-pointer"
+              className={`mt-0.5 cursor-pointer ${isDark ? "accent-white" : "accent-black"}`}
             />
             <label htmlFor="terms" className={`text-xs leading-relaxed cursor-pointer ${
               isDark ? "text-gray-400" : "text-gray-500"
             }`}>
               I agree to the{" "}
-              <a href="/terms" target="_blank" className="text-indigo-500 hover:text-indigo-400 transition-colors">
+              <a href="/terms" target="_blank" className={`font-medium transition-colors ${isDark ? "text-white hover:text-gray-300" : "text-black hover:text-gray-700"}`}>
                 Terms of Service
               </a>{" "}
               and{" "}
-              <a href="/privacy" target="_blank" className="text-indigo-500 hover:text-indigo-400 transition-colors">
+              <a href="/privacy" target="_blank" className={`font-medium transition-colors ${isDark ? "text-white hover:text-gray-300" : "text-black hover:text-gray-700"}`}>
                 Privacy Policy
               </a>
             </label>
@@ -286,8 +283,12 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            disabled={isLoading || isLocked || !email || !password || !confirmPassword || password!=confirmPassword  || !!emailError || !!passwordError || !agreedToTerms}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white py-3.5 rounded-full text-sm font-semibold transition-all shadow-lg shadow-indigo-600/20 hover:shadow-indigo-500/30 disabled:shadow-none"
+            disabled={isLoading || isLocked || !email || !password || !confirmPassword || password!==confirmPassword  || !!emailError || !!passwordError || !agreedToTerms}
+            className={`w-full py-3.5 rounded-full text-sm font-semibold transition-all shadow-lg disabled:shadow-none ${
+              isDark
+                ? "bg-white text-black hover:bg-gray-200 disabled:bg-gray-600 shadow-white/10 disabled:text-gray-400"
+                : "bg-black text-white hover:bg-gray-800 disabled:bg-gray-300 shadow-black/10 disabled:text-gray-600"
+            }`}
           >
             {isLocked
               ? `Locked (${lockSecondsRemaining}s)`
@@ -301,7 +302,7 @@ export default function SignupPage() {
       {/* Footer Link */}
       <p className={`relative mt-8 text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-indigo-500 hover:text-indigo-400 transition-colors">
+        <Link href="/login" className={`font-semibold transition-colors ${isDark ? "text-white hover:text-gray-300" : "text-black hover:text-gray-700"}`}>
           Login
         </Link>
       </p>

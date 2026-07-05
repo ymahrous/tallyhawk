@@ -22,31 +22,31 @@ export default function LoginPage() {
   const [lockSecondsRemaining, setLockSecondsRemaining] = useState(0);
 
   useEffect(() => {
-  if (lockedUntil === null) {
-    setIsLocked(false);
-    setLockSecondsRemaining(0);
-    return;
-  }
-
-  const ticker = setInterval(() => {
-    const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
-    if (remaining <= 0) {
+    if (lockedUntil === null) {
       setIsLocked(false);
       setLockSecondsRemaining(0);
-      setLockedUntil(null);
-      clearInterval(ticker);
-    } else {
-      setIsLocked(true);
-      setLockSecondsRemaining(remaining);
+      return;
     }
-  }, 1000);
 
-  const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
-  setIsLocked(remaining > 0);
-  setLockSecondsRemaining(Math.max(remaining, 0));
+    const ticker = setInterval(() => {
+      const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setIsLocked(false);
+        setLockSecondsRemaining(0);
+        setLockedUntil(null);
+        clearInterval(ticker);
+      } else {
+        setIsLocked(true);
+        setLockSecondsRemaining(remaining);
+      }
+    }, 1000);
 
-  return () => clearInterval(ticker);
-}, [lockedUntil]);
+    const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+    setIsLocked(remaining > 0);
+    setLockSecondsRemaining(Math.max(remaining, 0));
+
+    return () => clearInterval(ticker);
+  }, [lockedUntil]);
 
   useEffect(() => {
     if (!isLocked) return;
@@ -116,8 +116,8 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors placeholder:text-opacity-40 ${
                 isDark 
-                  ? "border-gray-700 text-white focus:border-indigo-500 placeholder-gray-500" 
-                  : "border-gray-200 text-gray-900 focus:border-indigo-500 placeholder-gray-400"
+                  ? "border-gray-700 text-white focus:border-white placeholder-gray-500" 
+                  : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
               }`}
               placeholder="Email address"
               required
@@ -131,8 +131,8 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors placeholder:text-opacity-40 pr-10 ${
                 isDark 
-                  ? "border-gray-700 text-white focus:border-indigo-500 placeholder-gray-500" 
-                  : "border-gray-200 text-gray-900 focus:border-indigo-500 placeholder-gray-400"
+                  ? "border-gray-700 text-white focus:border-white placeholder-gray-500" 
+                  : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
               }`}
               placeholder="Password"
               required
@@ -154,7 +154,11 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading || isLocked || !email || !password}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white py-3.5 rounded-full text-sm font-semibold transition-all shadow-lg shadow-indigo-600/20 hover:shadow-indigo-500/30 disabled:shadow-none"
+            className={`w-full py-3.5 rounded-full text-sm font-semibold transition-all shadow-lg disabled:shadow-none ${
+              isDark
+                ? "bg-white text-black hover:bg-gray-200 disabled:bg-gray-600 shadow-white/10 disabled:text-gray-400"
+                : "bg-black text-white hover:bg-gray-800 disabled:bg-gray-300 shadow-black/10 disabled:text-gray-600"
+            }`}
           >
             {isLocked
               ? `Locked (${lockSecondsRemaining}s)`
@@ -168,7 +172,7 @@ export default function LoginPage() {
       {/* Footer Link */}
       <p className={`relative mt-8 text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>
         Don{"'"}t have an account?{" "}
-        <Link href="/signup" className="font-semibold text-indigo-500 hover:text-indigo-400 transition-colors">
+        <Link href="/signup" className={`font-semibold transition-colors ${isDark ? "text-white hover:text-gray-300" : "text-black hover:text-gray-700"}`}>
           Sign up
         </Link>
       </p>
