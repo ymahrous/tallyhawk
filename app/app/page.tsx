@@ -138,11 +138,12 @@ export default function DashboardPage() {
   if (isLoading) return (<div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full" /></div>);
 
   return (
-    <div className={`min-h-screen pb-[env(safe-area-inset-bottom)] ${isDark ? "bg-black" : "bg-gray-50"}`}>
-      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-[env(safe-area-inset-top)]">
+    <div className={`min-h-screen pb-20 ${isDark ? "bg-black" : "bg-gray-50"}`}>
+      <div className="max-w-5xl mx-auto px-4 md:px-6">
         
         {/* Header */}
-        <div className="pt-6 md:pt-24 mb-8 md:mb-12">
+        {/* FIXED: pt-20 on mobile, pt-24 on desktop */}
+        <div className="pt-20 md:pt-24 mb-8 md:mb-12">
           <div className="flex items-center justify-between">
             <h1 className={`text-2xl md:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>Documents</h1>
             <Link 
