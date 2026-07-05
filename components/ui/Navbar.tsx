@@ -88,8 +88,8 @@ export default function Navbar() {
             )}
           </button>
 
-          {/* Pricing (ALWAYS VISIBLE) */}
-          {pathname !== "/pricing" && (
+          {/* Pricing */}
+          {(
             <button
               onClick={() => router.push("/pricing")}
               className={navLinkClass("/pricing")}
@@ -101,12 +101,12 @@ export default function Navbar() {
           {/* Auth Links */}
           {isLoggedIn ? (
             <div className="flex items-center gap-4">
-              {pathname !== "/app" && (
+              {(
                 <button onClick={() => router.push("/app")} className={primaryBtnClass}>
                   Dashboard
                 </button>
               )}
-              {pathname === "/app" && (
+              {(
                  <button onClick={() => router.push("/account")} className={navLinkClass("/account")}>
                    Account
                  </button>

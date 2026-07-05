@@ -1,7 +1,8 @@
 "use client";
+
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useTheme } from "@/app/providers/ThemeContext";
+import { useRouter } from "next/navigation";
 
 type Vendor = {
   id: string;
@@ -18,32 +19,42 @@ export default function VendorsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [mergeSource, setMergeSource] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
-  // Sync auth state exactly like Navbar
+  // 1. Ensure component is mounted (prevents localStorage SSR crash)
   useEffect(() => {
-    const syncAuth = () => {
-      const userToken = localStorage.getItem("token");
-      setToken(userToken);
-      if (!userToken) {
-        router.push("/login");
-      }
-    };
-    syncAuth();
-    window.addEventListener("storage", syncAuth);
-    return () => window.removeEventListener("storage", syncAuth);
-  }, [router]);
+    setIsMounted(true);
+  }, []);
+
+  // 2. Safe localStorage check
+  useEffect(() => {
+    if (!isMounted) return;
+
+    const userToken = localStorage.getItem("token");
+    if (!userToken) {
+      router.push("/login");
+      return;
+    }
+    setToken(userToken);
+  }, [isMounted, router]);
 
   const fetchVendors = async (userToken: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/vendors/`, {
+      const res = await fetch(`${API_BASE}/vendors/`, {
         headers: { Authorization: `Bearer ${userToken}` },
       });
+      
       if (res.status === 401) {
         router.push("/login");
         return;
       }
+      
+      if (!res.ok) {
+        throw new Error("Failed to fetch vendors");
+      }
+
       const data = await res.json();
       setVendors(data);
     } catch (err) {
@@ -53,6 +64,7 @@ export default function VendorsPage() {
     }
   };
 
+  // 3. Fetch data when token is ready
   useEffect(() => {
     if (token) fetchVendors(token);
   }, [token]);
@@ -61,53 +73,70 @@ export default function VendorsPage() {
     const newName = prompt("Enter new vendor name:", currentName);
     if (!newName || newName === currentName) return;
 
-    const res = await fetch(`${API_BASE}/api/v1/vendors/${vendorId}/rename`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ new_name: newName }),
-    });
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/vendors/${vendorId}/rename`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ new_name: newName }),
+      });
 
-    if (res.ok && token) fetchVendors(token);
+      if (res.ok && token) fetchVendors(token);
+    } catch (err) {
+      console.error("Rename failed", err);
+    }
   };
 
   const handleMerge = async (sourceId: string, targetId: string) => {
     if (sourceId === targetId) return alert("Cannot merge a vendor into itself.");
     if (!confirm("Merge this vendor? All documents will be re-assigned to the target vendor.")) return;
 
-    const res = await fetch(`${API_BASE}/api/v1/vendors/${sourceId}/merge`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ target_vendor_id: targetId }),
-    });
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/vendors/${sourceId}/merge`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ target_vendor_id: targetId }),
+      });
 
-    if (res.ok && token) {
-      setMergeSource(null);
-      fetchVendors(token);
+      if (res.ok && token) {
+        setMergeSource(null);
+        fetchVendors(token);
+      }
+    } catch (err) {
+      console.error("Merge failed", err);
     }
   };
 
-  // Matching Navbar's primaryBtnClass
-  const primaryBtnClass = `text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
-    isDark
-      ? "bg-white text-black hover:bg-gray-200"
-      : "bg-black text-white hover:bg-gray-800"
-  }`;
-
-  if (loading) return <div className={`p-8 ${isDark ? "text-white" : "text-black"}`}>Loading vendors...</div>;
+  // Prevent hydration mismatch / flash
+  if (!isMounted || loading) {
+    return (
+      <section className={`min-h-screen flex items-center justify-center ${
+        isDark ? "bg-black text-white" : "bg-gray-50 text-gray-900"
+      }`}>
+        <p className="text-sm">Loading vendors...</p>
+      </section>
+    );
+  }
 
   return (
-    <div className={`min-h-screen pt-24 pb-12 px-6 ${isDark ? "bg-black text-white" : "bg-white text-gray-900"}`}>
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-2 tracking-tight">Vendor Intelligence</h1>
-        <p className={`mb-8 text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-          Manage and merge your vendors so your analytics are accurate. If two vendors are the same company, select "Merge Into" to combine them.
-        </p>
+    <section className={`min-h-screen flex flex-col items-center px-6 pt-24 pb-16 relative overflow-hidden ${
+      isDark ? "bg-black" : "bg-gray-50"
+    }`}>
+      <div className="relative w-full max-w-2xl">
+        {/* Header */}
+        <div className="mb-10">
+          <h1 className={`text-2xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
+            Vendor Intelligence
+          </h1>
+          <p className={`text-sm mt-2 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+            Manage and merge your vendors so your analytics are accurate. If two vendors are the same company, select &quot;Merge Into&quot; to combine them.
+          </p>
+        </div>
 
         {vendors.length === 0 ? (
           <p className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>No vendors found. They will appear here once you process documents.</p>
@@ -116,23 +145,23 @@ export default function VendorsPage() {
             {vendors.map((vendor) => (
               <div 
                 key={vendor.id} 
-                className={`p-4 rounded-xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-colors ${
+                className={`p-5 rounded-2xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-colors ${
                   isDark 
-                    ? "bg-black/80 border-white/10 hover:border-white/20" 
-                    : "bg-white border-gray-200 hover:border-gray-300"
+                    ? "bg-slate-900/80 border-white/10 hover:border-white/20" 
+                    : "bg-white/80 border-gray-200 hover:border-gray-300"
                 }`}
               >
                 <div className="flex-1">
                   <button 
                     onClick={() => handleRename(vendor.id, vendor.canonical_name)}
-                    className={`text-lg font-semibold hover:underline underline-offset-2 decoration-gray-400 cursor-pointer text-left ${
-                      isDark ? "hover:text-blue-400" : "hover:text-blue-600"
+                    className={`text-base font-semibold hover:underline underline-offset-2 decoration-gray-400 cursor-pointer text-left transition-colors ${
+                      isDark ? "text-white hover:text-gray-300" : "text-gray-900 hover:text-gray-700"
                     }`}
                     title="Click to rename"
                   >
                     {vendor.canonical_name}
                   </button>
-                  <div className={`text-sm mt-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                  <div className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
                     Aliases: {vendor.aliases.length > 0 ? vendor.aliases.join(", ") : "None"}
                   </div>
                 </div>
@@ -141,10 +170,10 @@ export default function VendorsPage() {
                   {mergeSource === vendor.id ? (
                     <div className="flex items-center gap-2">
                       <select
-                        className={`border rounded-lg px-3 py-1.5 text-sm ${
+                        className={`border rounded-lg px-3 py-1.5 text-sm outline-none ${
                           isDark 
-                            ? "bg-black border-white/10 text-white focus:ring-white/30" 
-                            : "bg-white border-gray-200 text-gray-900 focus:ring-gray-300"
+                            ? "bg-transparent border-white/10 text-white focus:ring-white/30" 
+                            : "bg-transparent border-gray-200 text-gray-900 focus:ring-black/30"
                         }`}
                         onChange={(e) => handleMerge(vendor.id, e.target.value)}
                         defaultValue=""
@@ -156,7 +185,7 @@ export default function VendorsPage() {
                       </select>
                       <button 
                         onClick={() => setMergeSource(null)} 
-                        className={`text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+                        className={`text-xs font-medium px-3 py-2 rounded-lg border transition-colors ${
                           isDark ? "border-white/10 hover:bg-white/10 text-gray-400" : "border-gray-200 hover:bg-gray-50 text-gray-500"
                         }`}
                       >
@@ -166,7 +195,7 @@ export default function VendorsPage() {
                   ) : (
                     <button 
                       onClick={() => setMergeSource(vendor.id)}
-                      className={`text-sm px-4 py-2 rounded-lg border transition-colors ${
+                      className={`text-xs font-medium px-4 py-2 rounded-lg border transition-colors ${
                         isDark ? "border-white/10 hover:bg-white/10 text-gray-400" : "border-gray-200 hover:bg-gray-50 text-gray-500"
                       }`}
                     >
@@ -179,6 +208,6 @@ export default function VendorsPage() {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }
