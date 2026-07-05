@@ -7,6 +7,7 @@ export interface Document {
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   created_at: string;
   quickbooks_synced: boolean;
+  flags?: string | null;
 }
 
 interface AuthResponse {

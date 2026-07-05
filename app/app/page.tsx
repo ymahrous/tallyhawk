@@ -17,6 +17,7 @@ import UsageMeter from "@/components/ui/UsageMeter";
 import UpgradePrompt from "@/components/ui/UpgradePrompt";
 import SyncButton from "@/components/ui/SyncButton";
 import CategoryPage from "@/components/ui/CategoryPage";
+import WarningBadge from "@/components/ui/WarningBadge";
 
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -535,6 +536,10 @@ export default function DashboardPage() {
                             <p className={`text-sm font-medium truncate ${isDark ? "text-gray-200" : "text-gray-900"}`}>
                               {doc.filename}
                             </p>
+
+                            {/* NEW WARNING BADGE */}
+                            <WarningBadge flags={doc.flags} />
+                            
                             <p className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
                               {new Date(doc.created_at).toLocaleDateString()}
                             </p>
