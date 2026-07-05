@@ -124,8 +124,6 @@ export default function AccountPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const searchParams = useSearchParams();
-  
-  // ADDED currentPeriodEnd and lastRenewalDate
   const { plan: currentPlan, currentPeriodEnd, lastRenewalDate } = usePlan();
 
   // ── Auth guard ──
@@ -145,6 +143,12 @@ export default function AccountPage() {
   const [isDisconnectingQb, setIsDisconnectingQb] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportYear, setExportYear] = useState(new Date().getFullYear());
+
+  const primaryBtnClass = `transition-colors ${
+    isDark
+      ? "bg-white text-black hover:bg-white/80"
+      : "bg-black text-white hover:bg-black/80"
+  }`;
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -282,7 +286,7 @@ export default function AccountPage() {
       const { url } = await getQuickBooksConnectUrl();
       window.location.href = url; 
     } catch (err) {
-      alert("Failed to initiate QuickBooks connection.");
+      alert("Unable to initiate QuickBooks connection.");
     } finally {
       setIsConnectingQb(false);
     }
@@ -460,7 +464,7 @@ export default function AccountPage() {
               <button
                 onClick={handleExport}
                 disabled={isExporting}
-                className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className={`${primaryBtnClass} text-sm font-medium px-4 py-2 rounded-lg transition-colors`}
               >
                 {isExporting ? "Exporting..." : "Export CSV"}
               </button>
@@ -530,7 +534,7 @@ export default function AccountPage() {
             ) : (
               <button
                 onClick={() => router.push("/pricing")}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-1"
+                className={`${primaryBtnClass} text-xs font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-1`}
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                 Pro
@@ -610,8 +614,8 @@ export default function AccountPage() {
 
             <button
               type="submit"
-              disabled={isChangingPassword || !currentPassword || !newPassword || !confirmNewPassword}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white py-3 rounded-xl text-sm font-semibold transition-all"
+              disabled={isChangingPassword || !currentPassword || !newPassword || !confirmNewPassword || newPassword !== confirmNewPassword}
+              className={`${primaryBtnClass} w-full ${isDark ? "disabled:bg-white/50" : "disabled:bg-black/50"} disabled:cursor-not-allowed text-white py-3 rounded-xl text-sm font-semibold transition-all`}
             >
               {isChangingPassword ? "Updating..." : "Update Password"}
             </button>
