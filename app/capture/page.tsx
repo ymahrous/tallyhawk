@@ -41,19 +41,20 @@ export default function CapturePage() {
   };
 
   return (
-    // Use 100dvh for dynamic viewport height
     <div className={`h-[100dvh] flex flex-col font-sans antialiased overflow-hidden ${
       isDark ? "bg-black text-white" : "bg-white text-gray-900"
     }`}>
       
-      {/* Top Header */}
-      {/* FIXED: Standard mobile padding */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10 pt-16 md:pt-4">
-        <button onClick={() => router.push("/app")} className="text-sm text-indigo-500 font-medium">
-          ← Back
-        </button>
-        <h1 className="text-sm font-semibold font-mono">edocAI</h1>
-        <div className="w-12" />
+      {/* Top Safe Area & Header */}
+      {/* FIXED: pt-24 on mobile forces it cleanly below the 64px fixed Navbar. pt-28 on desktop for breathing room */}
+      <div className="pt-24 md:pt-28">
+        <div className="flex items-center justify-between px-6 pb-4 border-b border-white/10">
+          <button onClick={() => router.push("/app")} className="text-sm text-indigo-500 font-medium">
+            ← Back
+          </button>
+          <h1 className="text-sm font-semibold font-mono">edocAI</h1>
+          <div className="w-12" /> {/* Spacer for centering */}
+        </div>
       </div>
 
       {/* Main Viewfinder Area */}
