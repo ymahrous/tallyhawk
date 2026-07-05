@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jet
 
 export const metadata: Metadata = {
   title: {
-    default: "edocAI",
+    default: "edocAI | Automated Document Processing",
     template: "%s | edocAI",
   },
   description: "AI-powered financial document automation.",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://edocai.vercel.app",
     siteName: "edocAI",
-    title: "edocAI",
+    title: "edocAI | Automated Document Processing",
     description: "AI-powered financial document automation.",
   },
   robots: { index: true, follow: true },

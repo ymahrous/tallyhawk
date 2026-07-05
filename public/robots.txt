@@ -5,6 +5,8 @@ Allow: /privacy
 Allow: /terms
 Disallow: /app
 Disallow: /account
+Disallow: /billing
+Disallow: /capture
 Disallow: /login
 Disallow: /vendors
 
