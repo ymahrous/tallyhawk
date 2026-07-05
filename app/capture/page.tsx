@@ -49,7 +49,9 @@ export default function CapturePage() {
       {/* FIXED: pt-24 on mobile forces it cleanly below the 64px fixed Navbar. pt-28 on desktop for breathing room */}
       <div className="pt-24 md:pt-28">
         <div className="flex items-center justify-between px-6 pb-4 border-b border-white/10">
-          <button onClick={() => router.push("/app")} className="text-sm text-indigo-500 font-medium">
+          <button onClick={() => router.push("/app")} className={`text-sm font-medium ${!isDark 
+                ? "text-black hover:text-black/80 transition" 
+                : "text-white hover:text-white/80 transition"}`}>
             ← Back
           </button>
           <h1 className="text-sm font-semibold font-mono">edocAI</h1>

@@ -92,7 +92,7 @@ export default function UploadZone({ isUploading, uploadProgress, dragActive, on
         </div>
         <div>
           <p className={`font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-            Drop files here or <span className="text-indigo-500">browse</span>
+            Drop files here or <span className={`underline ${!isDark ? "text-black hover:text-black/50" : "text-white hover:text-white/50"}`}>browse</span>
           </p>
           <p className={`text-sm ${isDark ? "text-gray-600" : "text-gray-400"}`}>
             PDF, JPG, PNG up to {MAX_FILE_SIZE_MB}MB
