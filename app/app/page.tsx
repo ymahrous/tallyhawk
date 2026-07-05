@@ -103,7 +103,16 @@ export default function DashboardPage() {
   const handleCategoryUpdate = (documentId: string, newCategory: string) => {
     setExtractions((prev) => {
       const next = { ...prev };
-      if (next[documentId]) { next[documentId] = { ...next[documentId], category: newCategory, extracted_data: { ...next[documentId].extracted_data, category: newCategory } }; }
+      if (next[documentId]) {
+        next[documentId] = { 
+          ...next[documentId], 
+          category: newCategory, // Update the top-level column
+          extracted_data: {
+            ...next[documentId].extracted_data,
+            category: newCategory // FORCE the JSON to inherit the new category
+          } 
+        };
+      }
       return next;
     });
   };
@@ -129,26 +138,26 @@ export default function DashboardPage() {
   if (isLoading) return (<div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full" /></div>);
 
   return (
-    <div className={`min-h-screen pb-20 ${isDark ? "bg-black" : "bg-gray-50"}`}>
-      <div className="max-w-5xl mx-auto px-6 pt-24">
+    <div className={`min-h-screen pb-[env(safe-area-inset-bottom)] ${isDark ? "bg-black" : "bg-gray-50"}`}>
+      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-[env(safe-area-inset-top)]">
         
         {/* Header */}
-        <div className="mb-12">
+        <div className="pt-6 md:pt-24 mb-8 md:mb-12">
           <div className="flex items-center justify-between">
-            <h1 className={`text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>Documents</h1>
-            {/* MOVED CAPTURE BUTTON HERE - Looks cleaner next to the title */}
+            <h1 className={`text-2xl md:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>Documents</h1>
             <Link 
               href="/capture" 
-              className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-3 py-1.5 md:px-4 md:py-2 rounded-lg transition-colors flex items-center gap-1.5"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
               </svg>
-              Mobile Capture
+              <span className="hidden md:inline">Mobile Capture</span>
+              <span className="md:hidden">Capture</span>
             </Link>
           </div>
-          <p className={`text-sm mt-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Upload invoices to extract structured data via AI.</p>
+          <p className={`text-xs md:text-sm mt-1 md:mt-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Upload invoices to extract structured data via AI.</p>
           <div className="mt-4">
             <UsageMeter />
             {limitError && (<div className="mt-4"><UpgradePrompt title="Free Tier Limit Reached" message="You've used all 10 of your monthly document uploads. Upgrade to Pro for unlimited processing, QuickBooks sync, and more." /></div>)}

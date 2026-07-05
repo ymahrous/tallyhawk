@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     default: "edocAI",
     template: "%s | edocAI",
   },
-  description: "Instantly transform unstructured invoices and receipts into structured JSON using AI. Built with FastAPI, Celery, and Google Gemini.",
+  description: "AI-powered financial document automation.",
   keywords: ["AI", "Machine Learning", "Document Extraction", "OCR", "FastAPI", "Next.js"],
   openGraph: {
     type: "website",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     url: "https://edocai.vercel.app",
     siteName: "edocAI",
     title: "edocAI",
-    description: "Instantly transform unstructured invoices and receipts into structured JSON.",
+    description: "AI-powered financial document automation.",
   },
   robots: { index: true, follow: true },
   manifest: "/manifest.json",

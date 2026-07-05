@@ -43,7 +43,7 @@ export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCate
         {ext && (
           <div className="bg-black/80 rounded-xl p-5 border border-white/5">
             <pre className="text-emerald-400 font-mono text-xs leading-loose overflow-x-auto">
-              {JSON.stringify(ext.extracted_data, null, 2)}
+              {JSON.stringify((({ category, ...rest }) => rest)(ext.extracted_data), null, 2)}
             </pre>
           </div>
         )}
