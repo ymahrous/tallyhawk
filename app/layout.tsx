@@ -3,10 +3,11 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import { ThemeProvider, themeScript } from "./providers/ThemeContext";
-import { PlanProvider } from "./providers/PlanContext";
 import { Analytics } from "@vercel/analytics/next";
+import { PlanProvider } from "./providers/PlanContext";
+import { Inter, JetBrains_Mono } from "next/font/google";
+import FeedbackButton from "@/components/ui/FeedbackButton";
+import { ThemeProvider, themeScript } from "./providers/ThemeContext";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
@@ -51,6 +52,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                   {children}
                 </Suspense>
               </main>
+              <Suspense fallback={null}>
+                <FeedbackButton />
+              </Suspense>
               <Suspense fallback={null}>
                 <Footer />
               </Suspense>
