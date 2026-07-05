@@ -27,6 +27,7 @@ export const metadata: Metadata = {
     description: "Instantly transform unstructured invoices and receipts into structured JSON.",
   },
   robots: { index: true, follow: true },
+  manifest: "/manifest.json",
 };
 
 
