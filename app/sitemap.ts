@@ -1,38 +1,56 @@
-import type { MetadataRoute } from "next";
+import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = "https://edocai.vercel.app";
+  const baseUrl = 'https://edocai.vercel.app'
 
   return [
     {
-      url: base,
+      url: baseUrl,
       lastModified: new Date(),
-      changeFrequency: "monthly",
+      changeFrequency: 'monthly',
       priority: 1,
     },
     {
-      url: `${base}/signup`,
+      url: `${baseUrl}/pricing`,
       lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
+      changeFrequency: 'monthly',
+      priority: 0.9,
     },
     {
-      url: `${base}/login`,
+      url: `${baseUrl}/login`,
       lastModified: new Date(),
-      changeFrequency: "monthly",
+      changeFrequency: 'yearly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/signup`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/privacy`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
       priority: 0.5,
     },
     {
-      url: `${base}/privacy`,
+      url: `${baseUrl}/terms`,
       lastModified: new Date(),
-      changeFrequency: "yearly",
-      priority: 0.3,
+      changeFrequency: 'yearly',
+      priority: 0.5,
     },
     {
-      url: `${base}/terms`,
+      url: `${baseUrl}/app`,
       lastModified: new Date(),
-      changeFrequency: "yearly",
-      priority: 0.3,
+      changeFrequency: 'always',
+      priority: 0.8,
     },
-  ];
+    {
+      url: `${baseUrl}/account`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+  ]
 }
