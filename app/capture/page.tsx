@@ -41,20 +41,19 @@ export default function CapturePage() {
   };
 
   return (
-    // Use 100dvh for dynamic viewport height (handles mobile browser chrome)
+    // Use 100dvh for dynamic viewport height
     <div className={`h-[100dvh] flex flex-col font-sans antialiased overflow-hidden ${
       isDark ? "bg-black text-white" : "bg-white text-gray-900"
     }`}>
       
-      {/* Top Safe Area & Header */}
-      <div className="pt-[env(safe-area-inset-top)]">
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <button onClick={() => router.push("/app")} className="text-sm text-indigo-500 font-medium">
-            ← Back
-          </button>
-          <h1 className="text-sm font-semibold font-mono">edocAI</h1>
-          <div className="w-12" /> {/* Spacer for centering */}
-        </div>
+      {/* Top Header */}
+      {/* FIXED: Standard mobile padding */}
+      <div className="flex items-center justify-between p-4 border-b border-white/10 pt-16 md:pt-4">
+        <button onClick={() => router.push("/app")} className="text-sm text-indigo-500 font-medium">
+          ← Back
+        </button>
+        <h1 className="text-sm font-semibold font-mono">edocAI</h1>
+        <div className="w-12" />
       </div>
 
       {/* Main Viewfinder Area */}
@@ -94,8 +93,8 @@ export default function CapturePage() {
         )}
       </div>
 
-      {/* Bottom Action Bar with Safe Area */}
-      <div className={`p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
+      {/* Bottom Action Bar */}
+      <div className={`p-6 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
         <label 
           htmlFor="camera-upload" 
           className={`block w-full text-center py-4 rounded-2xl font-semibold text-lg transition-all ${
