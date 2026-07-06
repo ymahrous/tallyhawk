@@ -1,10 +1,9 @@
 "use client";
-
-import { useTheme } from "@/app/providers/ThemeContext";
+// import { useTheme } from "@/app/providers/ThemeContext";
 
 export default function WarningBadge({ flags }: { flags?: string | null }) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  // const { theme } = useTheme();
+  // const isDark = theme === "dark";
 
   if (!flags) return null;
 
