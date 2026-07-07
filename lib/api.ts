@@ -275,3 +275,25 @@ export async function checkQuickBooksSyncStatus(documentId: string): Promise<{ s
   if (!res.ok) return { synced: false };
   return res.json();
 }
+
+export interface CategorySpend { name: string; value: number; }
+export interface VendorSpend { name: string; value: number; }
+export interface MonthlySpend { month: string; spend: number; }
+
+export async function getCategorySpend(): Promise<CategorySpend[]> {
+  const res = await authFetch(`${API_URL}/analytics/spend-by-category`);
+  if (!res.ok) throw new Error("Failed to fetch category spend");
+  return res.json();
+}
+
+export async function getVendorSpend(): Promise<VendorSpend[]> {
+  const res = await authFetch(`${API_URL}/analytics/spend-by-vendor`);
+  if (!res.ok) throw new Error("Failed to fetch vendor spend");
+  return res.json();
+}
+
+export async function getMonthlyTrend(): Promise<MonthlySpend[]> {
+  const res = await authFetch(`${API_URL}/analytics/monthly-trend`);
+  if (!res.ok) throw new Error("Failed to fetch monthly trend");
+  return res.json();
+}

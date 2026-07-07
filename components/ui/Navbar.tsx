@@ -90,6 +90,9 @@ export default function Navbar() {
                         Dashboard
                       </button>
                     )}
+                    <button onClick={() => { router.push("/analytics"); setDropdownOpen(false); }} className={`w-full text-left px-4 py-2 text-sm ${pathname === "/analytics" ? (isDark ? "text-white" : "text-gray-900") : (isDark ? "text-gray-400 hover:bg-white/10" : "text-gray-500 hover:bg-gray-100")}`}>
+                      Analytics
+                    </button>
                     <button onClick={() => { router.push("/vendors"); setDropdownOpen(false); }} className={`w-full text-left px-4 py-2 text-sm ${pathname === "/vendors" ? (isDark ? "text-white" : "text-gray-900") : (isDark ? "text-gray-400 hover:bg-white/10" : "text-gray-500 hover:bg-gray-100")}`}>
                       Vendors
                     </button>
