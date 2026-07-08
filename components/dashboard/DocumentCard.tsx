@@ -16,6 +16,7 @@ interface DocumentCardProps {
 export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCategoryUpdate, onDelete }: DocumentCardProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const displayName = ext?.vendor?.canonical_name || ext?.extracted_data.vendor;
 
   return (
     <div className={`p-6 md:p-8 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-gray-50"}`}>
@@ -43,6 +44,7 @@ export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCate
         {ext && (
           <div className="bg-black/80 rounded-xl p-5 border border-white/5">
             <pre className="text-emerald-400 font-mono text-xs leading-loose overflow-x-auto">
+              {/* <p className="font-medium">{displayName}</p> */}
               {JSON.stringify((({ category, ...rest }) => rest)(ext.extracted_data), null, 2)}
             </pre>
           </div>

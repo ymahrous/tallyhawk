@@ -15,6 +15,12 @@ interface AuthResponse {
   token_type: string;
 }
 
+export interface VendorData {
+  id: string;
+  canonical_name: string;
+  aliases: string[];
+}
+
 export interface Extraction {
   document_id: string;
   extracted_data: {
@@ -25,6 +31,8 @@ export interface Extraction {
   };
   confidence_score: number;
   category?: string;
+  vendor_id?: string | null;
+  vendor?: VendorData | null;
 }
 
 export type TokenPayload = {
@@ -280,20 +288,24 @@ export interface CategorySpend { name: string; value: number; }
 export interface VendorSpend { name: string; value: number; }
 export interface MonthlySpend { month: string; spend: number; }
 
-export async function getCategorySpend(): Promise<CategorySpend[]> {
-  const res = await authFetch(`${API_URL}/analytics/spend-by-category`);
+export async function getCategorySpend(year: number, month?: number): Promise<CategorySpend[]> {
+  let url = `${API_URL}/analytics/spend-by-category?year=${year}`;
+  if (month) url += `&month=${month}`;
+  const res = await authFetch(url);
   if (!res.ok) throw new Error("Failed to fetch category spend");
   return res.json();
 }
 
-export async function getVendorSpend(): Promise<VendorSpend[]> {
-  const res = await authFetch(`${API_URL}/analytics/spend-by-vendor`);
+export async function getVendorSpend(year: number, month?: number): Promise<VendorSpend[]> {
+  let url = `${API_URL}/analytics/spend-by-vendor?year=${year}`;
+  if (month) url += `&month=${month}`;
+  const res = await authFetch(url);
   if (!res.ok) throw new Error("Failed to fetch vendor spend");
   return res.json();
 }
 
-export async function getMonthlyTrend(): Promise<MonthlySpend[]> {
-  const res = await authFetch(`${API_URL}/analytics/monthly-trend`);
+export async function getMonthlyTrend(year: number): Promise<MonthlySpend[]> {
+  const res = await authFetch(`${API_URL}/analytics/monthly-trend?year=${year}`);
   if (!res.ok) throw new Error("Failed to fetch monthly trend");
   return res.json();
 }
