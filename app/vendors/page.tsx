@@ -74,7 +74,7 @@ export default function VendorsPage() {
     if (!newName || newName === currentName) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/vendors/${vendorId}/rename`, {
+      const res = await fetch(`${API_BASE}/vendors/${vendorId}/rename`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -94,7 +94,7 @@ export default function VendorsPage() {
     if (!confirm("Merge this vendor? All documents will be re-assigned to the target vendor.")) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/vendors/${sourceId}/merge`, {
+      const res = await fetch(`${API_BASE}/vendors/${sourceId}/merge`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
