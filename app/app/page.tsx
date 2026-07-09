@@ -162,7 +162,7 @@ export default function DashboardPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-8 md:space-y-10">
         
         {/* Header */}
-        <div className="pt-8 md:pt-12 space-y-4">
+        <div className="pt-20 md:pt-24 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="space-y-1">
               <h1 className={`text-2xl md:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
