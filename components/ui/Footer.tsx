@@ -57,7 +57,7 @@ export default function Footer() {
               <li><Link href="/#features" className={linkClass}>QuickBooks Online</Link></li>
               <li><Link href="/#features" className={linkClass}>Tax CSV Export</Link></li>
               <li><Link href="/#features" className={linkClass}>Mobile Capture</Link></li>
-              <li><Link href="/#features" className={linkClass}>Email Ingestion</Link></li>
+              {/* <li><Link href="/#features" className={linkClass}>Email Ingestion</Link></li> */}
             </ul>
           </div>
 

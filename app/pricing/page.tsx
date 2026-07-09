@@ -27,7 +27,6 @@ const tiers = [
       "Unlimited documents",
       "QuickBooks Sync",
       "Tax Categorization & Export",
-      "Email Ingestion",
       "Priority Processing",
     ],
     cta: "Upgrade to Pro",
