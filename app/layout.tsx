@@ -6,6 +6,7 @@ import Footer from "@/components/ui/Footer";
 import { Analytics } from "@vercel/analytics/next";
 import { PlanProvider } from "./providers/PlanContext";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import FeedbackButton from "@/components/ui/FeedbackButton";
 import { ThemeProvider, themeScript } from "./providers/ThemeContext";
 
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </ThemeProvider>
       </body>
       <Analytics />
+      <SpeedInsights />
     </html>
   );
 }

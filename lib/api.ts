@@ -309,3 +309,15 @@ export async function getMonthlyTrend(year: number): Promise<MonthlySpend[]> {
   if (!res.ok) throw new Error("Failed to fetch monthly trend");
   return res.json();
 }
+
+export interface DashboardStats {
+  processed: number;
+  synced: number;
+  month_spend: number;
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const res = await authFetch(`${API_URL}/stats/dashboard`);
+  if (!res.ok) throw new Error("Failed to fetch stats");
+  return res.json();
+}

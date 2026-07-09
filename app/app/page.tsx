@@ -11,6 +11,7 @@ import UsageMeter from "@/components/ui/UsageMeter";
 import { useTheme } from "@/app/providers/ThemeContext";
 import UpgradePrompt from "@/components/ui/UpgradePrompt";
 import UploadZone from "@/components/dashboard/UploadZone";
+import { getDashboardStats, DashboardStats } from "@/lib/api";
 import DocumentCard from "@/components/dashboard/DocumentCard";
 import { UploadError, DeleteError } from "@/components/dashboard/Alerts";
 
@@ -21,6 +22,7 @@ export default function DashboardPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [limitError, setLimitError] = useState(false);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
 
   // ── Auth ──
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -38,6 +40,20 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [extractions, setExtractions] = useState<Record<string, Extraction>>({});
   const fetchingIdsRef = useRef<Set<string>>(new Set());
+
+  // ── Dashboard Stats ──
+  useEffect(() => {
+  if (!isAuthenticated) return;
+  const fetchStats = async () => {
+    try {
+      const data = await getDashboardStats();
+      setStats(data);
+    } catch (err) {
+      console.error("Failed to fetch stats", err);
+    }
+  };
+  fetchStats();
+}, [isAuthenticated, documents]);
 
   // ── UI State ──
   const [isUploading, setIsUploading] = useState(false);
@@ -142,7 +158,6 @@ export default function DashboardPage() {
       <div className="max-w-5xl mx-auto px-4 md:px-6">
         
         {/* Header */}
-        {/* FIXED: pt-20 on mobile, pt-24 on desktop */}
         <div className="pt-20 md:pt-24 mb-8 md:mb-12">
           <div className="flex items-center justify-between">
             <h1 className={`text-2xl md:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>Documents</h1>
@@ -164,6 +179,25 @@ export default function DashboardPage() {
             {limitError && (<div className="mt-4"><UpgradePrompt title="Free Tier Limit Reached" message="You've used all 10 of your monthly document uploads. Upgrade to Pro for unlimited processing, QuickBooks sync, and more." /></div>)}
           </div>
         </div>
+
+        {stats && (
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
+              <p className={`text-xs mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Processed</p>
+              <p className={`text-xl font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>{stats.processed}</p>
+            </div>
+            <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
+              <p className={`text-xs mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Synced</p>
+              <p className="text-xl font-semibold text-emerald-400">{stats.synced}</p>
+            </div>
+            <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
+              <p className={`text-xs mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>This Month</p>
+              <p className={`text-xl font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
+                ${stats.month_spend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+        )}
 
         <UploadZone isUploading={isUploading} uploadProgress={uploadProgress} dragActive={dragActive} onUpload={handleUpload} setDragActive={setDragActive} onValidationError={handleValidationError} />
         <UploadError message={uploadError} onDismiss={() => setUploadError("")} />
