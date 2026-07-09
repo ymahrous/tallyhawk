@@ -321,3 +321,22 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   if (!res.ok) throw new Error("Failed to fetch stats");
   return res.json();
 }
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const res = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error("Failed to request reset");
+}
+
+export async function resetPassword(token: string, new_password: string): Promise<void> {
+  const res = await fetch(`${API_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, new_password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || "Failed to reset password");
+}

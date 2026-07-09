@@ -20,6 +20,13 @@ export default function LoginPage() {
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const [lockSecondsRemaining, setLockSecondsRemaining] = useState(0);
+  const [emailError, setEmailError] = useState("");
+
+  const validateEmail = (value: string): string => {
+    if (!value) return "Email is required.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return "Please enter a valid email address.";
+    return "";
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -75,6 +82,12 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
+    const emailValidationError = validateEmail(email);
+    if (emailValidationError) {
+      setEmailError(emailValidationError);
+      return;
+    }
+
     try {
       await login(email, password);
       // router.push("/app");
@@ -120,7 +133,10 @@ export default function LoginPage() {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError(validateEmail(e.target.value));
+              }}
               className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors placeholder:text-opacity-40 ${
                 isDark 
                   ? "border-gray-700 text-white focus:border-white placeholder-gray-500" 
@@ -129,6 +145,10 @@ export default function LoginPage() {
               placeholder="Email address"
               required
             />
+
+            {emailError && (
+              <p className="text-xs text-amber-500 mt-1">{emailError}</p>
+            )}
           </div>
 
           <div className="relative">
@@ -160,7 +180,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={isLoading || isLocked || !email || !password}
+            disabled={isLoading || isLocked || !email || !password || !!emailError}
             className={`w-full py-3.5 rounded-full text-sm font-semibold transition-all shadow-lg disabled:shadow-none ${
               isDark
                 ? "bg-white text-black hover:bg-gray-200 disabled:bg-gray-600 shadow-white/10 disabled:text-gray-400"
@@ -173,6 +193,12 @@ export default function LoginPage() {
               ? "Signing in..."
               : "Continue"}
           </button>
+
+          <div className="flex items-start justify-end mt-2">
+            <Link href="/forgot-password" className={`text-xs transition-colors ${isDark ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"}`}>
+              Forgot password?
+            </Link>
+          </div>
         </form>
       </div>
 
