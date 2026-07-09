@@ -1,14 +1,14 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 import { requestPasswordReset } from "@/lib/api";
 import { useTheme } from "@/app/providers/ThemeContext";
 
 export default function ForgotPasswordPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const router = useRouter();
+  // const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);

@@ -1,9 +1,9 @@
 "use client";
-
 import Link from "next/link";
 import { resetPassword } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { useTheme } from "@/app/providers/ThemeContext";
+import PasswordToggle from "@/components/ui/PasswordToggle";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function ResetPasswordPage() {
@@ -15,9 +15,17 @@ export default function ResetPasswordPage() {
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [success, setSuccess] = useState(false);
+  
+  const [passwordStrength, setPasswordStrength] = useState<{
+    score: number;
+    label: string;
+    color: string;
+  }>({ score: 0, label: "", color: "" });
 
   useEffect(() => {
     if (!token) {
@@ -25,14 +33,44 @@ export default function ResetPasswordPage() {
     }
   }, [token]);
 
+  const getPasswordStrength = (value: string): {
+    score: number;
+    label: string;
+    color: string;
+  } => {
+    if (!value) return { score: 0, label: "", color: "" };
+
+    let score = 0;
+    if (value.length >= 8) score++;
+    if (value.length >= 12) score++;
+    if (/[A-Z]/.test(value)) score++;
+    if (/[0-9]/.test(value)) score++;
+    if (/[^A-Za-z0-9]/.test(value)) score++;
+
+    if (score <= 1) return { score, label: "Very weak",  color: "bg-red-500" };
+    if (score === 2) return { score, label: "Weak",       color: "bg-orange-500" };
+    if (score === 3) return { score, label: "Fair",       color: "bg-yellow-500" };
+    if (score === 4) return { score, label: "Strong",     color: "bg-blue-500" };
+    return              { score,     label: "Very strong", color: "bg-emerald-500" };
+  };
+
+  const validatePassword = (value: string): string => {
+    if (value.length < 8) return "Password must be at least 8 characters.";
+    if (!/[A-Z]/.test(value)) return "Password must contain at least one uppercase letter.";
+    if (!/[0-9]/.test(value)) return "Password must contain at least one number.";
+    return "";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters.");
+    const validationError = validatePassword(newPassword);
+    if (validationError) {
+      setPasswordError(validationError);
       return;
     }
+
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -74,39 +112,91 @@ export default function ResetPasswordPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="relative">
+            
+            {/* New Password Input Block */}
+            <div className="relative flex items-center">
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors ${
-                  isDark ? "border-gray-700 text-white focus:border-white placeholder-gray-500" : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  setPasswordError(validatePassword(e.target.value));
+                  setPasswordStrength(getPasswordStrength(e.target.value));
+                }}
+                className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors placeholder:text-opacity-40 pr-10 ${
+                  isDark
+                    ? "border-gray-700 text-white focus:border-white placeholder-gray-500"
+                    : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
                 }`}
                 placeholder="New password"
                 required
               />
+              <PasswordToggle
+                show={showPassword}
+                onToggle={() => setShowPassword(!showPassword)}
+                isDark={isDark}
+              />
             </div>
 
+            {/* Strength Bar */}
+            {newPassword && (
+              <div className="mt-3 space-y-1.5">
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((segment) => (
+                    <div
+                      key={segment}
+                      className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                        segment <= passwordStrength.score
+                          ? passwordStrength.color
+                          : isDark
+                          ? "bg-white/10"
+                          : "bg-gray-200"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className={`text-xs transition-colors ${
+                  passwordStrength.score <= 1 ? "text-red-500" :
+                  passwordStrength.score === 2 ? "text-orange-500" :
+                  passwordStrength.score === 3 ? "text-yellow-500" :
+                  passwordStrength.score === 4 ? "text-blue-500" :
+                  "text-emerald-500"
+                }`}>
+                  {passwordStrength.label}
+                </p>
+              </div>
+            )}
+
+            {/* Password validation error */}
+            {passwordError && (
+              <p className="text-xs text-amber-500 mt-1">{passwordError}</p>
+            )}
+
+            {/* Confirm Password Input Block */}
             <div className="relative">
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors ${
-                  isDark ? "border-gray-700 text-white focus:border-white placeholder-gray-500" : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
+                className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors placeholder:text-opacity-40 ${
+                  isDark
+                    ? "border-gray-700 text-white focus:border-white placeholder-gray-500"
+                    : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
                 }`}
                 placeholder="Confirm new password"
                 required
               />
             </div>
 
-            {error && <p className="text-sm text-red-500 bg-red-500/10 px-4 py-2 rounded-lg">{error}</p>}
+            {error && <p className="text-sm text-red-500 font-medium bg-red-500/10 px-4 py-2 rounded-lg">{error}</p>}
 
             <button
               type="submit"
-              disabled={isLoading || !token || !newPassword || newPassword !== confirmPassword}
-              className={`w-full py-3.5 rounded-full text-sm font-semibold transition-all disabled:opacity-40 ${
-                isDark ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-gray-800"
+              disabled={isLoading || !token || !newPassword || !confirmPassword || newPassword !== confirmPassword || !!passwordError}
+              className={`w-full py-3.5 rounded-full text-sm font-semibold transition-all shadow-lg disabled:shadow-none ${
+                isDark
+                  ? "bg-white text-black hover:bg-gray-200 disabled:bg-gray-600 shadow-white/10 disabled:text-gray-400"
+                  : "bg-black text-white hover:bg-gray-800 disabled:bg-gray-300 shadow-black/10 disabled:text-gray-600"
               }`}
             >
               {isLoading ? "Resetting..." : "Reset Password"}
