@@ -1,13 +1,17 @@
 User-agent: *
 Allow: /
 Allow: /signup
+Allow: /login
+Allow: /forgot-password
+Allow: /pricing
 Allow: /privacy
 Allow: /terms
 Disallow: /app
 Disallow: /account
 Disallow: /billing
 Disallow: /capture
-Disallow: /login
 Disallow: /vendors
+Disallow: /analytics
+Disallow: /reset-password
 
 Sitemap: https://edocai.vercel.app/sitemap.xml
