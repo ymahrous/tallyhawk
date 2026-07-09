@@ -1,6 +1,6 @@
 <div align="center">
 
-# edocAI — [![CI/CD](https://github.com/ymahrous/edocai/actions/workflows/ci.yml/badge.svg)](https://github.com/ymahrous/edocai/actions/workflows/ci.yml)
+# edocAI
 
 **The web client for edocAI, an AI-powered financial document processing platform.**
 
