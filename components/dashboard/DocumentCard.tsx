@@ -16,7 +16,9 @@ interface DocumentCardProps {
 export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCategoryUpdate, onDelete }: DocumentCardProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const displayName = ext?.vendor?.canonical_name || ext?.extracted_data.vendor;
+  
+  // 1. Get the clean canonical name, or fall back to the raw JSON string
+  const displayName = ext?.vendor?.canonical_name || ext?.extracted_data?.vendor || "Unknown";
 
   return (
     <div className={`p-6 md:p-8 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-gray-50"}`}>
@@ -40,13 +42,34 @@ export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCate
           </div>
         </div>
 
-        {/* Bottom Row: Extracted JSON */}
+        {/* Bottom Row: Extracted Data UI (Replaced raw JSON) */}
         {ext && (
-          <div className="bg-black/80 rounded-xl p-5 border border-white/5">
-            <pre className="text-emerald-400 font-mono text-xs leading-loose overflow-x-auto">
-              {/* <p className="font-medium">{displayName}</p> */}
-              {JSON.stringify((({ category, ...rest }) => rest)(ext.extracted_data), null, 2)}
-            </pre>
+          <div className={`rounded-xl p-5 border ${isDark ? "bg-black/40 border-white/5" : "bg-gray-50 border-gray-200"}`}>
+            <div className="grid grid-cols-2 gap-y-4 gap-x-6">
+              
+              {/* Vendor (Uses the clean relationship name!) */}
+              <div className="col-span-2">
+                <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Vendor</p>
+                <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>{displayName}</p>
+              </div>
+
+              {/* Amount */}
+              <div>
+                <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Amount</p>
+                <p className={`text-sm font-semibold ${isDark ? "text-emerald-400" : "text-emerald-600"}`}>
+                  {ext.extracted_data.total_amount || "N/A"}
+                </p>
+              </div>
+
+              {/* Date */}
+              <div>
+                <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Date</p>
+                <p className={`text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                  {ext.extracted_data.date || "N/A"}
+                </p>
+              </div>
+
+            </div>
           </div>
         )}
       </div>

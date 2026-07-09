@@ -72,6 +72,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
       router.push("/app");
+      window.location.reload()
     } catch (err: unknown) {
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);
