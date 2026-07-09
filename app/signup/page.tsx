@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { signup } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { isTokenExpired, signup } from "@/lib/api";
 import { useTheme } from "@/app/providers/ThemeContext";
 import PasswordToggle from "@/components/ui/PasswordToggle";
 
@@ -29,6 +29,12 @@ export default function SignupPage() {
     label: string;
     color: string;
   }>({ score: 0, label: "", color: "" });
+
+  useEffect(() => {
+      if (typeof window === "undefined") return;
+      if (!isTokenExpired()) { router.push("/app"); return; }
+      setIsLoading(false);
+    }, [router]);
 
   const validateEmail = (value: string): string => {
     if (!value) return "Email is required.";
@@ -121,7 +127,7 @@ export default function SignupPage() {
 
     try {
       await signup(email, password);
-      setTimeout(() => router.push("/app"), 100);
+      setTimeout(() => window.location.reload(), 100);
     } catch (err: unknown) {
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);
