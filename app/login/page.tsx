@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { login } from "@/lib/api";
+import { isTokenExpired, login } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "../providers/ThemeContext";
@@ -20,6 +20,12 @@ export default function LoginPage() {
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const [lockSecondsRemaining, setLockSecondsRemaining] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!isTokenExpired()) { router.push("/app"); return; }
+    setIsLoading(false);
+  }, [router]);
 
   useEffect(() => {
     if (lockedUntil === null) {
