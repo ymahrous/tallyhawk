@@ -196,8 +196,8 @@ export default function LoginPage() {
           </button>
 
           <div className="flex justify-start mt-2">
-            <Link href="/forgot-password" className={`text-xs transition-colors ${isDark ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"}`}>
-              forgot password
+            <Link href="/forgot-password" className={`text-xs font-semibold transition-colors ${isDark ? "text-white hover:text-blue-500" : "text-black hover:text-blue-500"}`}>
+              reset password
             </Link>
           </div>
         </form>

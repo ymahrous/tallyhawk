@@ -133,6 +133,7 @@ export default function Navbar() {
           {isLoggedIn ? (
             <>
               <button onClick={() => router.push("/app")} className={navLinkClass("/app")}>Dashboard</button>
+              <button onClick={() => router.push("/vendors")} className={navLinkClass("/analytics")}>Analytics</button>
               <button onClick={() => router.push("/vendors")} className={navLinkClass("/vendors")}>Vendors</button>
               <button onClick={() => router.push("/account")} className={navLinkClass("/account")}>Account</button>
               <button onClick={handleLogout} className="text-sm font-medium text-red-500 transition-colors">Log out</button>

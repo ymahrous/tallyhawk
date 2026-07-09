@@ -43,17 +43,17 @@ export default function DashboardPage() {
 
   // ── Dashboard Stats ──
   useEffect(() => {
-  if (!isAuthenticated) return;
-  const fetchStats = async () => {
-    try {
-      const data = await getDashboardStats();
-      setStats(data);
-    } catch (err) {
-      console.error("Failed to fetch stats", err);
-    }
-  };
-  fetchStats();
-}, [isAuthenticated, documents]);
+    if (!isAuthenticated) return;
+    const fetchStats = async () => {
+      try {
+        const data = await getDashboardStats();
+        setStats(data);
+      } catch (err) {
+        console.error("Failed to fetch stats", err);
+      }
+    };
+    fetchStats();
+  }, [isAuthenticated, documents]);
 
   // ── UI State ──
   const [isUploading, setIsUploading] = useState(false);
@@ -122,10 +122,10 @@ export default function DashboardPage() {
       if (next[documentId]) {
         next[documentId] = { 
           ...next[documentId], 
-          category: newCategory, // Update the top-level column
+          category: newCategory, 
           extracted_data: {
             ...next[documentId].extracted_data,
-            category: newCategory // FORCE the JSON to inherit the new category
+            category: newCategory 
           } 
         };
       }
@@ -151,104 +151,193 @@ export default function DashboardPage() {
   const totalPages = Math.ceil(completedDocs.length / PAGE_SIZE);
   const paginatedDocs = completedDocs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  if (isLoading) return (<div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full" /></div>);
+  if (isLoading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full" />
+    </div>
+  );
 
   return (
-    <div className={`min-h-screen pb-20 ${isDark ? "bg-black" : "bg-gray-50"}`}>
-      <div className="max-w-5xl mx-auto px-4 md:px-6">
+    <div className={`min-h-screen pb-24 ${isDark ? "bg-black" : "bg-gray-50"}`}>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-8 md:space-y-10">
         
         {/* Header */}
-        <div className="pt-20 md:pt-24 mb-8 md:mb-12">
-          <div className="flex items-center justify-between">
-            <h1 className={`text-2xl md:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>Documents</h1>
+        <div className="pt-8 md:pt-12 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h1 className={`text-2xl md:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
+                Documents
+              </h1>
+              <p className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                Upload invoices to extract structured data via AI.
+              </p>
+            </div>
             <Link 
               href="/capture" 
-              className={`text-sm font-medium px-3 py-1.5 md:px-4 md:py-2 rounded-lg transition-colors flex items-center gap-1.5 ${isDark ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-gray-800"}`}
+              className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shrink-0 ${isDark ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-gray-800"}`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
               </svg>
-              <span className="hidden md:inline">Mobile Capture</span>
-              <span className="md:hidden">Capture</span>
+              Mobile Capture
             </Link>
           </div>
-          <p className={`text-xs md:text-sm mt-1 md:mt-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Upload invoices to extract structured data via AI.</p>
-          <div className="mt-4">
+          
+          <div className="space-y-4">
             <UsageMeter />
-            {limitError && (<div className="mt-4"><UpgradePrompt title="Free Tier Limit Reached" message="You've used all 10 of your monthly document uploads. Upgrade to Pro for unlimited processing, QuickBooks sync, and more." /></div>)}
+            {limitError && (
+              <UpgradePrompt 
+                title="Free Tier Limit Reached" 
+                message="You've used all 10 of your monthly document uploads. Upgrade to Pro for unlimited processing, QuickBooks sync, and more." 
+              />
+            )}
           </div>
         </div>
 
         {stats && (
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
             <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
-              <p className={`text-xs mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Processed</p>
-              <p className={`text-xl font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>{stats.processed}</p>
+              <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-500" : "text-gray-400"}`}>Processed</p>
+              <p className={`text-lg sm:text-xl font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>{stats.processed}</p>
             </div>
             <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
-              <p className={`text-xs mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Synced</p>
-              <p className="text-xl font-semibold text-emerald-400">{stats.synced}</p>
+              <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-500" : "text-gray-400"}`}>Synced</p>
+              <p className="text-lg sm:text-xl font-semibold text-emerald-400">{stats.synced}</p>
             </div>
             <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
-              <p className={`text-xs mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>This Month</p>
-              <p className={`text-xl font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
+              <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-500" : "text-gray-400"}`}>This Month</p>
+              <p className={`text-lg sm:text-xl font-semibold wrap-break-word ${isDark ? "text-white" : "text-gray-900"}`}>
                 ${stats.month_spend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
           </div>
         )}
 
-        <UploadZone isUploading={isUploading} uploadProgress={uploadProgress} dragActive={dragActive} onUpload={handleUpload} setDragActive={setDragActive} onValidationError={handleValidationError} />
-        <UploadError message={uploadError} onDismiss={() => setUploadError("")} />
-        <DeleteError message={deleteError} onDismiss={() => setDeleteError("")} />
+        <div className="space-y-4">
+          <UploadZone 
+            isUploading={isUploading} 
+            uploadProgress={uploadProgress} 
+            dragActive={dragActive} 
+            onUpload={handleUpload} 
+            setDragActive={setDragActive} 
+            onValidationError={handleValidationError} 
+          />
+          <UploadError message={uploadError} onDismiss={() => setUploadError("")} />
+          <DeleteError message={deleteError} onDismiss={() => setDeleteError("")} />
+        </div>
 
         {activeDocs.length > 0 && (
-          <div className="mb-10">
-            <h2 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Processing ({activeDocs.length})</h2>
+          <div className="space-y-4">
+            <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+              Processing ({activeDocs.length})
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {activeDocs.map((doc) => (<div key={doc.id} className={`p-5 rounded-2xl border backdrop-blur-sm ${isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-200"}`}><div className="flex items-center gap-3"><div className="animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full shrink-0" /><span className={`text-sm font-medium truncate ${isDark ? "text-gray-300" : "text-gray-700"}`}>{doc.filename}</span></div></div>))}
+              {activeDocs.map((doc) => (
+                <div key={doc.id} className={`p-5 rounded-2xl border ${isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-200"}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full shrink-0" />
+                    <span className={`text-sm font-medium truncate ${isDark ? "text-gray-300" : "text-gray-700"}`}>{doc.filename}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {failedDocs.length > 0 && ( <div className="mb-10"><h2 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Failed ({failedDocs.length})</h2><div className={`rounded-2xl border overflow-hidden ${isDark ? "bg-white/5 border-red-500/20" : "bg-white border-red-200"}`}>{failedDocs.map((doc) => (<div key={doc.id} className={`p-6 flex items-center justify-between border-b last:border-0 ${isDark ? "border-white/10" : "border-gray-100"}`}><div className="flex items-center gap-4"><div className="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center"><svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg></div><div><p className={`text-sm font-medium truncate max-w-xs ${isDark ? "text-gray-300" : "text-gray-700"}`}>{doc.filename}</p><p className="text-xs text-red-500 mt-0.5">Processing failed</p></div></div><button onClick={() => handleDelete(doc.id)} className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-gray-500 hover:text-white" : "hover:bg-gray-100 text-gray-400 hover:text-gray-900"}`} aria-label="Delete document"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg></button></div>))}</div></div>)}
-
-        {/* Results Table */}
-        <div className={`rounded-2xl border overflow-hidden backdrop-blur-sm ${isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-200"}`}>
-          <div className={`px-8 py-5 border-b ${isDark ? "border-white/10" : "border-gray-200"}`}>
-            <h2 className={`text-sm font-semibold ${isDark ? "text-gray-300" : "text-gray-700"}`}>Results ({completedDocs.length})</h2>
-          </div>
-
-          {completedDocs.length === 0 ? (
-            <div className="p-16 flex flex-col items-center justify-center gap-4"><div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isDark ? "bg-white/5" : "bg-gray-100"}`}><svg className={`w-7 h-7 ${isDark ? "text-gray-600" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></div><div className="text-center"><p className={`text-sm font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>No documents yet</p><p className={`text-xs mt-1 ${isDark ? "text-gray-600" : "text-gray-400"}`}>Upload an invoice or receipt above to get started.</p></div></div>
-          ) : (
-            <>
-              <div className={`divide-y ${isDark ? "divide-white/10" : "divide-gray-100"}`}>
-                {paginatedDocs.map((doc) => (
-                  <DocumentCard 
-                    key={doc.id} 
-                    doc={doc} 
-                    ext={extractions[doc.id]} 
-                    qbConnected={qbConnected} 
-                    isDeleting={deletingIds.has(doc.id)} 
-                    onCategoryUpdate={handleCategoryUpdate} 
-                    onDelete={handleDelete} 
-                  />
-                ))}
-              </div>
-
-              {totalPages > 1 && (
-                <div className={`px-8 py-4 border-t flex items-center justify-between ${isDark ? "border-white/10" : "border-gray-200"}`}>
-                  <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>Page {page} of {totalPages}</p>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? "bg-white/5 hover:bg-white/10 text-gray-300" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}>Previous</button>
-                    <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? "bg-white/5 hover:bg-white/10 text-gray-300" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}>Next</button>
+        {failedDocs.length > 0 && (
+          <div className="space-y-4">
+            <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+              Failed ({failedDocs.length})
+            </h2>
+            <div className={`rounded-2xl border overflow-hidden divide-y ${isDark ? "bg-white/5 border-red-500/20 divide-white/10" : "bg-white border-red-200 divide-gray-100"}`}>
+              {failedDocs.map((doc) => (
+                <div key={doc.id} className="p-4 sm:p-6 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
+                      <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-sm font-medium truncate ${isDark ? "text-gray-300" : "text-gray-700"}`}>{doc.filename}</p>
+                      <p className="text-xs text-red-500 mt-0.5">Processing failed</p>
+                    </div>
                   </div>
+                  <button 
+                    onClick={() => handleDelete(doc.id)} 
+                    className={`p-2 rounded-lg transition-colors self-end sm:self-center ${isDark ? "hover:bg-white/10 text-gray-500 hover:text-white" : "hover:bg-gray-100 text-gray-400 hover:text-gray-900"}`} 
+                    aria-label="Delete document"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                  </button>
                 </div>
-              )}
-            </>
-          )}
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Results Container */}
+        <div className="space-y-4">
+          <div className={`rounded-2xl border overflow-hidden ${isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-200"}`}>
+            <div className={`px-4 sm:px-6 py-4 border-b ${isDark ? "border-white/10" : "border-gray-200"}`}>
+              <h2 className={`text-sm font-semibold ${isDark ? "text-gray-300" : "text-gray-700"}`}>Results ({completedDocs.length})</h2>
+            </div>
+
+            {completedDocs.length === 0 ? (
+              <div className="p-8 sm:p-16 flex flex-col items-center justify-center gap-4">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isDark ? "bg-white/5" : "bg-gray-100"}`}>
+                  <svg className={`w-7 h-7 ${isDark ? "text-gray-600" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                </div>
+                <div className="text-center space-y-1">
+                  <p className={`text-sm font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>No documents yet</p>
+                  <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>Upload an invoice or receipt above to get started.</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className={`divide-y ${isDark ? "divide-white/10" : "divide-gray-100"}`}>
+                  {paginatedDocs.map((doc) => (
+                    <DocumentCard 
+                      key={doc.id} 
+                      doc={doc} 
+                      ext={extractions[doc.id]} 
+                      qbConnected={qbConnected} 
+                      isDeleting={deletingIds.has(doc.id)} 
+                      onCategoryUpdate={handleCategoryUpdate} 
+                      onDelete={handleDelete} 
+                    />
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className={`px-4 sm:px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 ${isDark ? "border-white/10" : "border-gray-200"}`}>
+                    <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>Page {page} of {totalPages}</p>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setPage((p) => Math.max(1, p - 1))} 
+                        disabled={page === 1} 
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? "bg-white/5 hover:bg-white/10 text-gray-300" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
+                      >
+                        Previous
+                      </button>
+                      <button 
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))} 
+                        disabled={page === totalPages} 
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? "bg-white/5 hover:bg-white/10 text-gray-300" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
       </div>
