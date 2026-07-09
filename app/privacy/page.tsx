@@ -120,7 +120,7 @@ export default function PrivacyPolicy() {
             {
               id: "9",
               title: "9. Contact",
-              content: "For privacy, data deletion, or DPA inquiries, please open an issue on our GitHub repository.",
+              content: "For privacy, data deletion, or DPA inquiries, please send us an issue through the chat widget.",
             },
           ].map(({ id, title, content }) => (
             <div key={id} id={id} className={`rounded-2xl border p-6 ${

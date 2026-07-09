@@ -81,7 +81,7 @@ export default function TermsOfService() {
             {
               id: "11",
               title: "11. Contact Information",
-              content: "For questions about these Terms, please open an issue on our GitHub repository.",
+              content: "For questions about these Terms, please send us a message through the chat widget.",
             },
           ].map(({ id, title, content }) => (
             <div key={id} id={id} className={`rounded-2xl border p-6 ${
