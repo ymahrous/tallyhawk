@@ -9,6 +9,13 @@ const ChatIcon = () => (
   </svg>
 );
 
+const sanitizeFeedback = (str: string): string => {
+    return str
+      .replace(/</g, "&lt;") // Basic XSS prevention
+      .replace(/>/g, "&gt;")
+      .trim(); // Strip leading/trailing whitespace
+  };
+
 export default function FeedbackButton() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -23,13 +30,16 @@ export default function FeedbackButton() {
 
   const handleSend = async () => {
     if (!text.trim()) return;
+    const sanitizedText = sanitizeFeedback(text);
+    if (!sanitizedText) return;
+
     setIsSending(true);
 
     try {
       await fetch(`${API_BASE}/feedback/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: activeType, message: text }),
+        body: JSON.stringify({ type: activeType, message: sanitizedText }),
       });
 
       setIsSent(true);

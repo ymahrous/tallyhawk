@@ -111,7 +111,8 @@ export default function SignupPage() {
       return;
     }
 
-    const emailValidationError = validateEmail(email);
+    const trimmedEmail = email.trim();
+    const emailValidationError = validateEmail(trimmedEmail);
     if (emailValidationError) {
       setEmailError(emailValidationError);
       return;
@@ -126,7 +127,7 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      await signup(email, password);
+      await signup(trimmedEmail, password);
       setTimeout(() => window.location.reload(), 100);
     } catch (err: unknown) {
       const newAttempts = attempts + 1;

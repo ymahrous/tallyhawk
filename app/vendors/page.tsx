@@ -71,7 +71,7 @@ export default function VendorsPage() {
 
   const handleRename = async (vendorId: string, currentName: string) => {
     const newName = prompt("Enter new vendor name:", currentName);
-    if (!newName || newName === currentName) return;
+    if (!newName || newName.trim() === "" || newName.trim() === currentName) return;
 
     try {
       const res = await fetch(`${API_BASE}/vendors/${vendorId}/rename`, {
@@ -80,7 +80,7 @@ export default function VendorsPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ new_name: newName }),
+        body: JSON.stringify({ new_name: newName.trim() }),
       });
 
       if (res.ok && token) fetchVendors(token);

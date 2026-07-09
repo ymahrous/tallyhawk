@@ -39,10 +39,16 @@ export default function CategoryPage({ documentId, currentCategory, onCategoryUp
       return;
     }
 
+    if (!CATEGORIES.includes(newCat)) {
+      console.error("Invalid category selected");
+      setIsEditing(false);
+      return; 
+    }
+
     setIsLoading(true);
     try {
       await updateCategory(documentId, newCat);
-      onCategoryUpdate(documentId, newCat); // UPDATE LOCAL STATE INSTANTLY
+      onCategoryUpdate(documentId, newCat);
       setIsEditing(false);
     } catch (err) {
       console.error("Failed to update category", err);

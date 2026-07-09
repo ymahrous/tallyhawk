@@ -82,14 +82,15 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
-    const emailValidationError = validateEmail(email);
+    const trimmedEmail = email.trim();
+    const emailValidationError = validateEmail(trimmedEmail);
     if (emailValidationError) {
       setEmailError(emailValidationError);
       return;
     }
 
     try {
-      await login(email, password);
+      await login(trimmedEmail, password);
       // router.push("/app");
       window.location.reload();
     } catch (err: unknown) {
