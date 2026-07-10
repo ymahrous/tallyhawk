@@ -70,14 +70,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="max-w-5xl mx-auto px-6 pb-32">
-        <div className={`rounded-3xl p-1 shadow-2xl border backdrop-blur-xl ${
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-20 sm:pb-32">
+        <div className={`rounded-2xl sm:rounded-3xl p-1 shadow-2xl border backdrop-blur-xl ${
           isDark ? "bg-white/5 border-white/10 shadow-black/50" : "bg-gray-100 border-gray-200 shadow-gray-300/50"
         }`}>
-          <div className={`rounded-[20px] p-6 md:p-8 ${isDark ? "bg-black/40" : "bg-white"}`}>
+          <div className={`rounded-2xl sm:rounded-[20px] p-4 sm:p-6 md:p-8 ${isDark ? "bg-black/40" : "bg-white"}`}>
             
             {/* Window Chrome */}
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-4 sm:mb-6">
               <div className="w-3 h-3 rounded-full bg-red-500/80" />
               <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
               <div className="w-3 h-3 rounded-full bg-green-500/80" />
@@ -85,26 +85,26 @@ export default function LandingPage() {
             </div>
 
             {/* Fake Dashboard UI */}
-            <div className={`rounded-xl border p-6 ${isDark ? "bg-black/60 border-white/5" : "bg-gray-50 border-gray-200"}`}>
+            <div className={`rounded-xl border p-4 sm:p-6 ${isDark ? "bg-black/60 border-white/5" : "bg-gray-50 border-gray-200"}`}>
               
-              {/* Fake Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
-                  <p className={`text-xs mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Processed</p>
+              {/* Fake Stats - Stacks to 1 col on mobile, 3 on md+ */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+                <div className={`flex sm:flex-col justify-between sm:justify-start items-center sm:items-start p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
+                  <p className={`text-xs mb-0 sm:mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Processed</p>
                   <p className={`text-xl font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>24</p>
                 </div>
-                <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
-                  <p className={`text-xs mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Synced</p>
+                <div className={`flex sm:flex-col justify-between sm:justify-start items-center sm:items-start p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
+                  <p className={`text-xs mb-0 sm:mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Synced</p>
                   <p className="text-xl font-semibold text-emerald-400">18</p>
                 </div>
-                <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
-                  <p className={`text-xs mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>This Month</p>
+                <div className={`flex sm:flex-col justify-between sm:justify-start items-center sm:items-start p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
+                  <p className={`text-xs mb-0 sm:mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>This Month</p>
                   <p className={`text-xl font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>$5,459</p>
                 </div>
               </div>
 
-              {/* Fake Table Header */}
-              <div className={`grid grid-cols-12 gap-4 pb-3 border-b text-xs font-medium ${isDark ? "border-white/10 text-gray-500" : "border-gray-200 text-gray-400"}`}>
+              {/* Fake Table Header - Hidden on small screens */}
+              <div className={`hidden md:grid grid-cols-12 gap-4 pb-3 border-b text-xs font-medium ${isDark ? "border-white/10 text-gray-500" : "border-gray-200 text-gray-400"}`}>
                 <div className="col-span-4">Document</div>
                 <div className="col-span-2">Status</div>
                 <div className="col-span-2">Category</div>
@@ -112,73 +112,129 @@ export default function LandingPage() {
                 <div className="col-span-2 text-right">QuickBooks</div>
               </div>
 
-              {/* Fake Row 1 - AWS */}
-              <div className={`grid grid-cols-12 gap-4 py-4 border-b items-center ${isDark ? "border-white/5" : "border-gray-100"}`}>
-                <div className="col-span-4 flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? "bg-white/10" : "bg-gray-200"}`}>
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              {/* Fake Row 1 - AWS (Card on mobile, Row on desktop) */}
+              <div className={`py-4 border-b ${isDark ? "border-white/5" : "border-gray-100"}`}>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 md:items-center">
+                  
+                  {/* Document Info - Full width on mobile */}
+                  <div className="col-span-4 flex items-center justify-between md:justify-start gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? "bg-white/10" : "bg-gray-200"}`}>
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>aws_billing.pdf</p>
+                        <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>Amazon Web Services</p>
+                      </div>
+                    </div>
+                    {/* Anchor QuickBooks action to top right on mobile */}
+                    <div className="md:hidden">
+                      <button className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${isDark ? "border-white/10 text-gray-400" : "border-gray-200 text-gray-500"}`}>
+                        Sync to QB
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>aws_billing.pdf</p>
-                    <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>Amazon Web Services</p>
+
+                  {/* Status, Category, Amount - Horizontal flex on mobile, Grid on desktop */}
+                  <div className="col-span-8 flex items-center justify-between md:contents">
+                    <div className="md:col-span-2">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${isDark ? "bg-yellow-500/10 text-yellow-400" : "bg-yellow-50 text-yellow-600"}`}>Processing</span>
+                    </div>
+                    <div className={`md:col-span-2 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                      <span className={`md:hidden text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>Category: </span>Hosting
+                    </div>
+                    <div className={`md:col-span-2 text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <span className={`md:hidden text-xs font-normal ${isDark ? "text-gray-600" : "text-gray-400"}`}>Amount: </span>$159.90
+                    </div>
+                    <div className="col-span-2 text-right hidden md:block">
+                      <button className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${isDark ? "border-white/10 text-gray-400" : "border-gray-200 text-gray-500"}`}>
+                        Sync to QB
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="col-span-2">
-                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${isDark ? "bg-yellow-500/10 text-yellow-400" : "bg-yellow-50 text-yellow-600"}`}>Processing</span>
-                </div>
-                <div className={`col-span-2 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>Hosting</div>
-                <div className={`col-span-2 text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>$159.90</div>
-                <div className="col-span-2 text-right">
-                  <button className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${isDark ? "border-white/10 text-gray-400" : "border-gray-200 text-gray-500"}`}>
-                    Sync
-                  </button>
                 </div>
               </div>
 
               {/* Fake Row 2 - Apple */}
-              <div className={`grid grid-cols-12 gap-4 py-4 border-b items-center ${isDark ? "border-white/5" : "border-gray-100"}`}>
-                <div className="col-span-4 flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? "bg-white/10" : "bg-gray-200"}`}>
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              <div className={`py-4 border-b ${isDark ? "border-white/5" : "border-gray-100"}`}>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 md:items-center">
+                  
+                  <div className="col-span-4 flex items-center justify-between md:justify-start gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? "bg-white/10" : "bg-gray-200"}`}>
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>receipt_hw.jpg</p>
+                        <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>Apple Store</p>
+                      </div>
+                    </div>
+                    <div className="md:hidden">
+                      <div className="inline-flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                        <span className="text-xs text-emerald-400">Synced</span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>receipt_hw.jpg</p>
-                    <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>Apple Store</p>
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${isDark ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600"}`}>Completed</span>
-                </div>
-                <div className={`col-span-2 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>Equipment</div>
-                <div className={`col-span-2 text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>$224.08</div>
-                <div className="col-span-2 text-right">
-                  <div className="inline-flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
-                    <span className="text-xs text-emerald-400">Synced</span>
+
+                  <div className="col-span-8 flex items-center justify-between md:contents">
+                    <div className="md:col-span-2">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${isDark ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600"}`}>Completed</span>
+                    </div>
+                    <div className={`md:col-span-2 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                      <span className={`md:hidden text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>Category: </span>Equipment
+                    </div>
+                    <div className={`md:col-span-2 text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <span className={`md:hidden text-xs font-normal ${isDark ? "text-gray-600" : "text-gray-400"}`}>Amount: </span>$224.08
+                    </div>
+                    <div className="col-span-2 text-right hidden md:block">
+                      <div className="inline-flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                        <span className="text-xs text-emerald-400">Synced</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Fake Row 3 - Stripe */}
-              <div className="grid grid-cols-12 gap-4 py-4 items-center">
-                <div className="col-span-4 flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? "bg-white/10" : "bg-gray-200"}`}>
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              <div className="py-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 md:items-center">
+                  
+                  <div className="col-span-4 flex items-center justify-between md:justify-start gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? "bg-white/10" : "bg-gray-200"}`}>
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>invoice_q3.pdf</p>
+                        <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>Stripe, Inc.</p>
+                      </div>
+                    </div>
+                    <div className="md:hidden">
+                      <div className="inline-flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                        <span className="text-xs text-emerald-400">Synced</span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>invoice_q3.pdf</p>
-                    <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>Stripe, Inc.</p>
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${isDark ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600"}`}>Completed</span>
-                </div>
-                <div className={`col-span-2 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>Software</div>
-                <div className={`col-span-2 text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>$48.50</div>
-                <div className="col-span-2 text-right">
-                  <div className="inline-flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
-                    <span className="text-xs text-emerald-400">Synced</span>
+
+                  <div className="col-span-8 flex items-center justify-between md:contents">
+                    <div className="md:col-span-2">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${isDark ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600"}`}>Completed</span>
+                    </div>
+                    <div className={`md:col-span-2 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                      <span className={`md:hidden text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>Category: </span>Software
+                    </div>
+                    <div className={`md:col-span-2 text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                      <span className={`md:hidden text-xs font-normal ${isDark ? "text-gray-600" : "text-gray-400"}`}>Amount: </span>$48.50
+                    </div>
+                    <div className="col-span-2 text-right hidden md:block">
+                      <div className="inline-flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                        <span className="text-xs text-emerald-400">Synced</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

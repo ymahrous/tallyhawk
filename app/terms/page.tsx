@@ -31,56 +31,71 @@ export default function TermsOfService() {
             {
               id: "1",
               title: "1. Acceptance of Terms",
-              content: "By creating an account or using the Service, you acknowledge that you have read, understood, and agree to be bound by these Terms. If you do not agree to all of these Terms, you are not authorized to use the Service.",
+              content: "By creating an account or using the Service, you acknowledge that you have read, understood, and agree to be bound by these Terms and our Privacy Policy. If you do not agree to all of these Terms, you are not authorized to use the Service.",
             },
             {
               id: "2",
               title: "2. Description of Service",
-              content: "edocAI provides an AI-powered SaaS platform that allows users to upload financial documents (such as invoices and receipts), receive structured JSON data extracted via AI, sync data to accounting software (QuickBooks), and generate tax categorization reports. The Service includes a Free tier and a Pro subscription tier.",
+              content: "edocAI provides an AI-powered SaaS platform that allows users to upload financial documents (such as invoices and receipts), receive structured JSON data extracted via AI, sync data to accounting software (QuickBooks), and generate tax categorization reports. The Service includes a Free tier and a Pro subscription tier. Please note: The Service currently only supports processing and billing in USD.",
             },
             {
               id: "3",
               title: "3. User Accounts and Security",
-              content: "You are responsible for maintaining the confidentiality of your account credentials. You agree to notify us immediately of any unauthorized use of your account. edocAI uses JSON Web Tokens for session management. You must not share your access tokens with third parties.",
+              content: "You must be at least 18 years of age to use this Service. You are responsible for maintaining the confidentiality of your account credentials. You agree to notify us immediately of any unauthorized use of your account. edocAI uses JSON Web Tokens for session management. You must not share your access tokens with third parties.",
             },
             {
               id: "4",
               title: "4. Subscriptions and Billing",
-              content: "By subscribing to the edocAI Pro tier, you agree to pay the applicable subscription fees via our payment processor (Stripe). Subscriptions renew automatically at the end of the billing cycle (monthly or annual). You may cancel your subscription at any time; access to Pro features will continue until the end of the current billing period. No partial refunds are provided for unused portions of a billing cycle.",
+              content: "By subscribing to the edocAI Pro tier, you agree to pay the applicable subscription fees via our payment processor (Stripe). All prices are listed in USD. Subscriptions renew automatically at the end of the billing cycle (monthly or annual). You may cancel your subscription at any time; access to Pro features will continue until the end of the current billing period. No partial refunds are provided for unused portions of a billing cycle.",
             },
             {
               id: "5",
-              title: "5. User Content & Integrations",
-              content: "You retain all rights to the documents you upload. By uploading content, you grant edocAI a limited, non-exclusive license to process the document strictly for generating extraction outputs, categorizations, and syncing to your authorized third-party integrations. You are solely responsible for ensuring you have the legal right to upload and process the documents you submit. We do not use your documents to train our underlying AI models.",
+              title: "5. User Content, Data Ownership & Integrations",
+              content: "You retain all rights and ownership to the documents you upload. By uploading content, you grant edocAI a limited, non-exclusive, temporary license to process the document strictly for generating extraction outputs, categorizations, and syncing to your authorized third-party integrations. \n\nYou are solely responsible for ensuring you have the legal right to upload and process the documents you submit, and that they do not violate any third-party privacy or confidentiality agreements. \n\nWe do not use your documents to train our underlying AI models or the models of our AI sub-processors.",
             },
             {
               id: "6",
               title: "6. Acceptable Use and Rate Limits",
-              content: "To ensure platform stability, edocAI enforces usage limits based on your subscription tier. You agree not to abuse the Service by circumventing these limits, attempting to overload the infrastructure, reverse engineering the AI pipeline, or using automated scripts to mass-extract data without prior authorization.",
+              content: "To ensure platform stability, edocAI enforces usage limits based on your subscription tier. You agree not to abuse the Service. Prohibited actions include, but are not limited to: \n\n• Circumventing or attempting to circumvent usage limits or tier restrictions.\n• Attempting to overload, compromise, or disrupt the infrastructure or AI processing pipeline.\n• Reverse engineering the AI extraction logic or proprietary algorithms.\n• Using automated scripts (bots) to mass-extract data without explicit prior written authorization.\n• Uploading malicious files, malware, or content that is illegal, harmful, or violates intellectual property rights.",
             },
             {
               id: "7",
               title: "7. Intellectual Property",
-              content: "The edocAI name, logo, underlying code, and UI design are the intellectual property of edocAI. You may not copy, modify, or distribute any part of the Service without prior written consent.",
+              content: "The edocAI name, logo, underlying source code, application design, and proprietary AI pipelines are the intellectual property of the author. You may not copy, modify, distribute, or create derivative works based on any part of the Service without prior written consent. You retain all intellectual property rights to your uploaded documents.",
             },
             {
               id: "8",
-              title: "8. Disclaimer of Warranties",
-              content: "The Service is provided on an as-is and as-available basis without warranties of any kind. AI extraction results and tax categorizations may contain inaccuracies. You are entirely responsible for verifying all extracted data and synced financial records before using them for tax, legal, or official accounting purposes. edocAI is not a substitute for a certified accountant.",
+              title: "8. AI Disclaimer and Accuracy",
+              content: "The Service utilizes artificial intelligence and machine learning models to extract and categorize data. AI technology is inherently probabilistic, and extraction results may contain inaccuracies, omissions, or errors (\"hallucinations\"). \n\nYou are entirely responsible for reviewing, verifying, and approving all extracted data and synced financial records before using them for tax filing, legal compliance, or official accounting purposes. edocAI is a data-processing tool and is not a substitute for a certified public accountant (CPA) or tax professional.",
             },
             {
               id: "9",
-              title: "9. Limitation of Liability",
-              content: "In no event shall edocAI, its developers, or affiliates be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to financial losses arising from incorrect AI extractions or failed accounting software synchronizations.",
+              title: "9. Disclaimer of Warranties",
+              content: "The Service is provided on an as-is and as-available basis without warranties of any kind, either express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement. We do not warrant that the Service will be uninterrupted, error-free, or free of harmful components.",
             },
             {
               id: "10",
-              title: "10. Changes to Terms",
-              content: "We reserve the right to modify these Terms at any time. Your continued use of the Service after changes constitutes acceptance of the modified Terms.",
+              title: "10. Limitation of Liability",
+              content: "To the maximum extent permitted by applicable law, in no event shall edocAI, its developers, directors, or affiliates be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to financial losses, tax penalties, or accounting errors arising from incorrect AI extractions, failed accounting software synchronizations, or inability to use the Service.",
             },
             {
               id: "11",
-              title: "11. Contact Information",
+              title: "11. Indemnification",
+              content: "You agree to indemnify, defend, and hold harmless edocAI and its officers, directors, employees, and agents from and against any claims, liabilities, damages, losses, or expenses (including reasonable attorneys' fees) arising out of or in any way connected with: (a) your access to or use of the Service; (b) your violation of these Terms; or (c) your upload of documents that infringe or violate the rights of any third party, including privacy or intellectual property rights.",
+            },
+            {
+              id: "12",
+              title: "12. Termination",
+              content: "We reserve the right to suspend or terminate your account and access to the Service at our sole discretion, without prior notice, for conduct that we determine violates these Terms, is harmful to other users, or disrupts the Service. Upon termination, your right to use the Service will immediately cease. Provisions that by their nature should survive termination shall remain in effect.",
+            },
+            {
+              id: "13",
+              title: "13. Changes to Terms",
+              content: "We reserve the right to modify these Terms at any time. Your continued use of the Service after the effective date of the revised Terms constitutes acceptance of the changes.",
+            },
+            {
+              id: "14",
+              title: "14. Contact Information",
               content: "For questions about these Terms, please send us a message through the chat widget.",
             },
           ].map(({ id, title, content }) => (
@@ -92,7 +107,7 @@ export default function TermsOfService() {
               }`}>
                 {title}
               </h2>
-              <p className="text-sm leading-relaxed">{content}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-line">{content}</p>
             </div>
           ))}
         </div>

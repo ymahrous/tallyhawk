@@ -36,7 +36,7 @@ export default function PrivacyPolicy() {
             </h2>
             <div className="space-y-3 text-sm leading-relaxed">
               <p><strong className={isDark ? "text-white" : "text-gray-900"}>Account Data:</strong> We store your email address and a cryptographically hashed version of your password. We do not store passwords in plain text.</p>
-              <p><strong className={isDark ? "text-white" : "text-gray-900"}>Billing Data:</strong> When you subscribe to our Pro plan, payment processing is handled entirely by Stripe. We store your subscription status and billing dates, but we never see or store your full credit card number.</p>
+              <p><strong className={isDark ? "text-white" : "text-gray-900"}>Billing Data:</strong> When you subscribe to our Pro plan, payment processing is handled entirely by Stripe. We store your subscription status and billing dates, but we never see or store your full credit card number. <strong className={isDark ? "text-white" : "text-gray-900"}>Please note: We currently only support transactions in USD.</strong></p>
               <p><strong className={isDark ? "text-white" : "text-gray-900"}>Document Data:</strong> Documents you upload are temporarily stored in our secure cloud storage for AI processing. We also store the extracted structured data (vendor, amount, category) to provide our service features.</p>
               <p><strong className={isDark ? "text-white" : "text-gray-900"}>Integration Data:</strong> If you connect QuickBooks, we store OAuth tokens securely to facilitate synchronization. We do not access or store your QuickBooks financial data beyond what is necessary to push expense records.</p>
               <p><strong className={isDark ? "text-white" : "text-gray-900"}>System Logs:</strong> Our hosting providers may automatically collect standard server logs such as IP address and browser type to prevent spam and ensure security.</p>
@@ -51,12 +51,11 @@ export default function PrivacyPolicy() {
               2. How We Use Your Information
             </h2>
             <div className="space-y-2 text-sm leading-relaxed">
-              <p>We use your data strictly to provide and improve the Service:</p>
+              <p>We use your data strictly to provide and improve the Service based on the following legal bases:</p>
               <ul className="list-disc list-inside ml-2 space-y-1">
-                <li><strong className={isDark ? "text-white" : "text-gray-900"}>Email:</strong> Account identification, security alerts, and JWT payload generation.</li>
-                <li><strong className={isDark ? "text-white" : "text-gray-900"}>Documents:</strong> Passed to our AI inference pipeline to generate structured extractions and tax categorizations.</li>
-                <li><strong className={isDark ? "text-white" : "text-gray-900"}>Usage Data:</strong> To enforce free tier limits and display usage meters.</li>
-                <li><strong className={isDark ? "text-white" : "text-gray-900"}>Integration Tokens:</strong> To sync data to your connected accounting software.</li>
+                <li><strong className={isDark ? "text-white" : "text-gray-900"}>Contractual Necessity:</strong> Processing documents, extracting data, and syncing to QuickBooks to deliver the core service you signed up for.</li>
+                <li><strong className={isDark ? "text-white" : "text-gray-900"}>Legitimate Interest:</strong> Using email for security alerts, using system logs to prevent fraud and spam, and displaying usage meters to enforce free tier limits.</li>
+                <li><strong className={isDark ? "text-white" : "text-gray-900"}>Consent:</strong> Storing JWT tokens in your browser's localStorage to maintain your logged-in session.</li>
               </ul>
               <p className="mt-2">We do not sell, rent, or share your personal data with third parties for marketing purposes.</p>
             </div>
@@ -77,7 +76,7 @@ export default function PrivacyPolicy() {
                 { label: "Database", detail: "User metadata is stored in a managed PostgreSQL database with strict row-level isolation." },
                 { label: "Files", detail: "Documents are stored in a secure object storage bucket with restricted access controls." },
                 { label: "Authentication", detail: "Passwords are hashed using Bcrypt. Sessions are managed via short-lived JWTs." },
-                { label: "AI Processing", detail: "Documents are sent to Google Gemini API for processing. We do not retain rights to your data to train their models." },
+                { label: "AI Processing", detail: "Documents are sent to Google Gemini API for processing. Depending on our current API tier, Google may temporarily retain this data for abuse monitoring, but we do not grant them the right to train public models on your documents." },
                 { label: "Integrations", detail: "QuickBooks OAuth tokens are encrypted at rest and never exposed to the client." },
               ].map(({ label, detail }) => (
                 <div key={label} className={`flex gap-3 text-sm rounded-xl px-4 py-3 ${
@@ -90,37 +89,47 @@ export default function PrivacyPolicy() {
             </div>
           </div>
 
-          {/* Sections 4-9 */}
+          {/* Sections 4-10 */}
           {[
             {
               id: "4",
-              title: "4. Data Retention and Deletion (GDPR & CCPA Compliance)",
-              content: "You have the right to access, correct, or delete your personal data at any time. You can delete your account and all associated documents directly from your Account Settings. Upon deletion, your data is purged from our primary databases and storage buckets within 48 hours. Residual backups containing your data may persist for up to 30 days before automatic expiration.",
+              title: "4. Your Data Rights (GDPR & CCPA)",
+              content: "Under GDPR and CCPA, you have the following rights regarding your personal data: \n\n• Right to Access & Portability: You can request a copy of your data in a machine-readable format (e.g., JSON export of your documents). \n• Right to Rectification: You can correct inaccurate personal data. \n• Right to Erasure: You can delete your account and all associated documents directly from your Account Settings. Upon deletion, your data is purged from our primary databases and storage buckets within 48 hours. Residual backups containing your data may persist for up to 30 days before automatic expiration. \n• Right to Object / Restrict Processing: You can request that we stop processing your data while retaining your account. \n• Right to Non-Discrimination (CCPA): Exercising your privacy rights will not result in discriminatory treatment. We do not sell your personal information, and there is no opt-out required for data sales.",
             },
             {
               id: "5",
-              title: "5. Third-Party Services",
-              content: "The Service relies on the following third-party infrastructure providers, who process data strictly under Data Processing Agreements (DPAs): Stripe (Payment Processing), Google Cloud (Gemini API & AI inference), Intuit (QuickBooks API), AWS/GCS (File storage), and Vercel/Railway (Application hosting).",
+              title: "5. Data Retention",
+              content: "We retain your documents and extracted data for as long as your account is active or until you manually delete them. If you cancel your subscription, your data remains intact but processing is paused until you downgrade or delete it. If you delete your account, data is purged from primary systems within 48 hours and from backups within 30 days.",
             },
             {
               id: "6",
-              title: "6. Cookies and Local Storage",
-              content: "We use your browser's localStorage exclusively to store your JWT access token so you remain logged in. We do not use traditional tracking cookies. Clearing your browser data will log you out but will not delete your account or documents from our servers.",
+              title: "6. Third-Party Services",
+              content: "The Service relies on the following third-party infrastructure providers, who process data strictly under Data Processing Agreements (DPAs): Stripe (Payment Processing), Google Cloud (Gemini API & AI inference), Intuit (QuickBooks API), AWS/GCS (File storage), and Vercel/Railway (Application hosting).",
             },
             {
               id: "7",
-              title: "7. International Data Transfers",
-              content: "If you are accessing the Service from outside the United States, please be aware that your data may be transferred to, stored, and processed in the US. By using the Service, you consent to this transfer pursuant to applicable Standard Contractual Clauses (SCCs).",
+              title: "7. Cookies and Local Storage",
+              content: "We use your browser's localStorage exclusively to store your JWT access token so you remain logged in. We do not use traditional tracking cookies. Clearing your browser data will log you out but will not delete your account or documents from our servers.",
             },
             {
               id: "8",
-              title: "8. Changes to This Policy",
-              content: "We reserve the right to modify this Privacy Policy at any time. Your continued use of the Service after changes constitutes acceptance of the modified Privacy Policy.",
+              title: "8. International Data Transfers",
+              content: "If you are accessing the Service from outside the United States, please be aware that your data may be transferred to, stored, and processed in the US. By using the Service, you consent to this transfer pursuant to applicable Standard Contractual Clauses (SCCs).",
             },
             {
               id: "9",
-              title: "9. Contact",
-              content: "For privacy, data deletion, or DPA inquiries, please send us an issue through the chat widget.",
+              title: "9. Children's Privacy",
+              content: "The Service is not intended for anyone under the age of 18. We do not knowingly collect personal information from children. If we discover that a child under 18 has provided us with personal data, we will delete such information immediately.",
+            },
+            {
+              id: "10",
+              title: "10. Changes to This Policy",
+              content: "We reserve the right to modify this Privacy Policy at any time. Your continued use of the Service after changes constitutes acceptance of the modified Privacy Policy.",
+            },
+            {
+              id: "11",
+              title: "11. Contact",
+              content: "For privacy, data deletion, data portability requests, or DPA inquiries, please send us an issue through the chat widget.",
             },
           ].map(({ id, title, content }) => (
             <div key={id} id={id} className={`rounded-2xl border p-6 ${
@@ -129,7 +138,7 @@ export default function PrivacyPolicy() {
               <h2 className={`text-base font-semibold mb-3 ${isDark ? "text-white" : "text-gray-900"}`}>
                 {title}
               </h2>
-              <p className="text-sm leading-relaxed">{content}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-line">{content}</p>
             </div>
           ))}
         </div>
