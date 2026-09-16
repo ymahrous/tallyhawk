@@ -1,17 +1,21 @@
 "use client";
 
+"use client";
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   uploadDocument, getDocuments, getExtraction, deleteDocument,
   Document, Extraction, isTokenExpired, getQuickBooksStatus,
+  getDashboardStats, DashboardStats
 } from "@/lib/api";
+import { useSettings } from "@/app/providers/SettingsContext";
+import { formatCurrency, CurrencyCode } from "@/lib/currency";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import UsageMeter from "@/components/ui/UsageMeter";
 import { useTheme } from "@/app/providers/ThemeContext";
 import UpgradePrompt from "@/components/ui/UpgradePrompt";
 import UploadZone from "@/components/dashboard/UploadZone";
-import { getDashboardStats, DashboardStats } from "@/lib/api";
 import DocumentCard from "@/components/dashboard/DocumentCard";
 import { UploadError, DeleteError } from "@/components/dashboard/Alerts";
 
@@ -21,6 +25,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const { baseCurrency } = useSettings();
   const [limitError, setLimitError] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
@@ -206,9 +211,11 @@ export default function DashboardPage() {
               <p className="text-lg sm:text-xl font-semibold text-emerald-400">{stats.synced}</p>
             </div>
             <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
-              <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-500" : "text-gray-400"}`}>This Month</p>
+              <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                This Month ({baseCurrency})
+              </p>
               <p className={`text-lg sm:text-xl font-semibold wrap-break-word ${isDark ? "text-white" : "text-gray-900"}`}>
-                ${stats.month_spend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(stats.month_spend, baseCurrency as CurrencyCode)}
               </p>
             </div>
           </div>

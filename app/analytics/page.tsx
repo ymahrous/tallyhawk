@@ -1,22 +1,23 @@
-// app/analytics/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { usePlan } from "@/app/providers/PlanContext";
-import { 
-  getCategorySpend, 
-  getVendorSpend, 
-  getMonthlyTrend, 
+import { useSettings } from "@/app/providers/SettingsContext";
+import {
+  getCategorySpend,
+  getVendorSpend,
+  getMonthlyTrend,
   isTokenExpired,
   CategorySpend,
   VendorSpend,
   MonthlySpend
 } from "@/lib/api";
-import { 
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, LineChart, Line, CartesianGrid 
+import { formatCurrency, CurrencyCode } from "@/lib/currency";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line, CartesianGrid
 } from "recharts";
 
 const MONTHS = [
@@ -43,6 +44,9 @@ export default function AnalyticsPage() {
   const [vendorData, setVendorData] = useState<VendorSpend[]>([]);
   const [trendData, setTrendData] = useState<MonthlySpend[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const { baseCurrency } = useSettings();
+  const currencyFormatter = (value: number) => formatCurrency(value, baseCurrency as CurrencyCode);
 
   useEffect(() => {
     if (isTokenExpired() || !localStorage.getItem("token")) {
@@ -150,7 +154,7 @@ export default function AnalyticsPage() {
           {/* Spend Trend (Full Year) */}
           <div className={`lg:col-span-2 p-6 rounded-2xl border ${isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-200"}`}>
             <h3 className={`text-sm font-semibold mb-6 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-              Monthly Spend Trend ({selectedYear})
+              Monthly Spend Trend ({selectedYear}) - {baseCurrency}
             </h3>
             <div className="h-64">
               {trendData.length > 0 ? (
@@ -158,8 +162,16 @@ export default function AnalyticsPage() {
                   <LineChart data={trendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#333" : "#e5e7eb"} />
                     <XAxis dataKey="month" stroke={isDark ? "#666" : "#999"} fontSize={12} />
-                    <YAxis stroke={isDark ? "#666" : "#999"} fontSize={12} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <YAxis
+                      stroke={isDark ? "#666" : "#999"}
+                      fontSize={12}
+                      tickFormatter={currencyFormatter}
+                    />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      formatter={((value: any, name?: string | number) => [value !== undefined ? currencyFormatter(Number(value)) : "", String(name || "")]) as any}
+                    />
                     <Line type="monotone" dataKey="spend" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -173,14 +185,25 @@ export default function AnalyticsPage() {
 
           {/* Top Vendors */}
           <div className={`p-6 rounded-2xl border ${isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-200"}`}>
-            <h3 className={`text-sm font-semibold mb-6 ${isDark ? "text-gray-300" : "text-gray-700"}`}>Top Vendors</h3>
+            <h3 className={`text-sm font-semibold mb-6 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+              Top Vendors ({baseCurrency})
+            </h3>
             <div className="h-64">
               {vendorData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={vendorData} layout="vertical">
-                    <XAxis type="number" stroke={isDark ? "#666" : "#999"} fontSize={12} />
+                    <XAxis
+                      type="number"
+                      stroke={isDark ? "#666" : "#999"}
+                      fontSize={12}
+                      tickFormatter={currencyFormatter}
+                    />
                     <YAxis dataKey="name" type="category" width={100} stroke={isDark ? "#666" : "#999"} fontSize={12} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      formatter={((value: any, name?: string | number) => [value !== undefined ? currencyFormatter(Number(value)) : "", String(name || "")]) as any}
+                    />
                     <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -194,7 +217,9 @@ export default function AnalyticsPage() {
 
           {/* Category Breakdown */}
           <div className={`p-6 rounded-2xl border ${isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-200"}`}>
-            <h3 className={`text-sm font-semibold mb-6 ${isDark ? "text-gray-300" : "text-gray-700"}`}>Spend by Category</h3>
+            <h3 className={`text-sm font-semibold mb-6 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+              Spend by Category ({baseCurrency})
+            </h3>
             <div className="h-64 flex items-center justify-center">
               {categoryData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -204,7 +229,11 @@ export default function AnalyticsPage() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      formatter={((value: any, name?: string | number) => [value !== undefined ? currencyFormatter(Number(value)) : "", String(name || "")]) as any}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (

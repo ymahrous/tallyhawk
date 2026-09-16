@@ -28,11 +28,17 @@ export interface Extraction {
     total_amount: string;
     date: string;
     category?: string;
+    currency?: string;
   };
   confidence_score: number;
   category?: string;
   vendor_id?: string | null;
   vendor?: VendorData | null;
+  original_currency?: string;
+  original_amount?: number;
+  converted_amount?: number;
+  exchange_rate?: number;
+  base_currency?: string;  // User's base currency when extracted
 }
 
 export type TokenPayload = {
@@ -314,6 +320,7 @@ export interface DashboardStats {
   processed: number;
   synced: number;
   month_spend: number;
+  base_currency?: string;
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
@@ -339,4 +346,32 @@ export async function resetPassword(token: string, new_password: string): Promis
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || "Failed to reset password");
+}
+
+// --- SETTINGS FUNCTIONS ---
+export interface UserSettings {
+  id: string;
+  username: string;
+  plan: "free" | "pro";
+  base_currency: string;
+  created_at: string;
+}
+
+export async function getSettings(): Promise<UserSettings> {
+  const res = await authFetch(`${API_URL}/auth/settings`);
+  if (!res.ok) throw new Error("Failed to fetch settings");
+  return res.json();
+}
+
+export async function updateSettings(baseCurrency: string): Promise<UserSettings> {
+  const res = await authFetch(`${API_URL}/auth/settings`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ base_currency: baseCurrency }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Failed to update settings");
+  }
+  return res.json();
 }

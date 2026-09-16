@@ -5,6 +5,7 @@ import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
 import { Analytics } from "@vercel/analytics/next";
 import { PlanProvider } from "./providers/PlanContext";
+import { SettingsProvider } from "./providers/SettingsContext";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import FeedbackButton from "@/components/ui/FeedbackButton";
@@ -42,24 +43,26 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${inter.className} ${jetbrainsMono.className} antialiased`}>
         <ThemeProvider>
           <PlanProvider>
-            <header>
-              <Suspense fallback={null}>
-                <Navbar />
-              </Suspense>
-            </header>
-            <div className="min-h-screen flex flex-col">
-              <main className="grow">
+            <SettingsProvider>
+              <header>
                 <Suspense fallback={null}>
-                  {children}
+                  <Navbar />
                 </Suspense>
-              </main>
-              <Suspense fallback={null}>
-                <FeedbackButton />
-              </Suspense>
-              <Suspense fallback={null}>
-                <Footer />
-              </Suspense>
-            </div>
+              </header>
+              <div className="min-h-screen flex flex-col">
+                <main className="grow">
+                  <Suspense fallback={null}>
+                    {children}
+                  </Suspense>
+                </main>
+                <Suspense fallback={null}>
+                  <FeedbackButton />
+                </Suspense>
+                <Suspense fallback={null}>
+                  <Footer />
+                </Suspense>
+              </div>
+            </SettingsProvider>
           </PlanProvider>
         </ThemeProvider>
       </body>

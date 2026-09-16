@@ -4,6 +4,8 @@ import SyncButton from "@/components/ui/SyncButton";
 import { useTheme } from "@/app/providers/ThemeContext";
 import CategoryPage from "@/components/ui/CategoryPage";
 import WarningBadge from "@/components/ui/WarningBadge";
+import { formatDualCurrency, CurrencyCode } from "@/lib/currency";
+import { useSettings } from "@/app/providers/SettingsContext";
 
 interface DocumentCardProps {
   doc: Document;
@@ -39,6 +41,7 @@ const formatThisDate = (dateString: string) => {
 export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCategoryUpdate, onDelete }: DocumentCardProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const { baseCurrency } = useSettings();
   const displayName = ext?.vendor?.canonical_name || ext?.extracted_data?.vendor || "Unknown";
   const isImage = /\.(jpg|jpeg|png|gif|webp|heic)$/i.test(doc.filename) || /\.(jpg|jpeg|png|gif|webp|heic)$/i.test(doc.s3_url);
   const disableActions = (e: React.SyntheticEvent) => {
@@ -116,10 +119,30 @@ export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCate
 
           {/* Amount */}
           <div>
-            <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Amount</p>
-            <p className={`text-sm font-semibold ${isDark ? "text-emerald-400" : "text-emerald-600"}`}>
-              {ext.extracted_data.total_amount || "N/A"}
+            <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+              Amount
             </p>
+            {ext && ext.original_currency && ext.original_amount !== undefined && ext.converted_amount !== undefined && ext.original_currency !== baseCurrency ? (
+              <>
+                <p className={`text-sm font-semibold ${isDark ? "text-emerald-400" : "text-emerald-600"}`}>
+                  {formatDualCurrency(
+                    ext.original_amount,
+                    ext.original_currency as CurrencyCode,
+                    ext.converted_amount,
+                    baseCurrency as CurrencyCode
+                  )}
+                </p>
+                {ext.exchange_rate && (
+                  <p className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                    Rate: 1 {ext.original_currency} = {ext.exchange_rate.toFixed(4)} {baseCurrency}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className={`text-sm font-semibold ${isDark ? "text-emerald-400" : "text-emerald-600"}`}>
+                {ext?.extracted_data?.total_amount || "N/A"}
+              </p>
+            )}
           </div>
 
           {/* Date */}

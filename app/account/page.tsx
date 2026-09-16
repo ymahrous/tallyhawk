@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { exportTaxSummary } from "@/lib/api";
 import { usePlan } from "../providers/PlanContext";
 import { useTheme } from "@/app/providers/ThemeContext";
+import { useSettings } from "@/app/providers/SettingsContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getQuickBooksConnectUrl, getQuickBooksStatus } from "@/lib/api";
 import { logout, decodeToken, isTokenExpired, disconnectQuickBooks } from "@/lib/api";
+import { SUPPORTED_CURRENCIES, CurrencyCode } from "@/lib/currency";
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 function SectionCard({
@@ -143,12 +145,15 @@ export default function AccountPage() {
   const [isDisconnectingQb, setIsDisconnectingQb] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportYear, setExportYear] = useState(new Date().getFullYear());
+  const [currencyError, setCurrencyError] = useState("");
+  const [currencySuccess, setCurrencySuccess] = useState("");
+  const [isUpdatingCurrency, setIsUpdatingCurrency] = useState(false);
 
-  const primaryBtnClass = `transition-colors ${
-    isDark
-      ? "bg-white text-black hover:bg-white/80"
-      : "bg-black text-white hover:bg-black/80"
-  }`;
+  const { baseCurrency, updateBaseCurrency } = useSettings();
+
+  const primaryBtnClass = isDark
+    ? "bg-white text-black hover:bg-white/80"
+    : "bg-black text-white hover:bg-black/80";
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -240,6 +245,20 @@ export default function AccountPage() {
       setPasswordError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleCurrencyChange = async (currency: CurrencyCode) => {
+    setIsUpdatingCurrency(true);
+    setCurrencyError("");
+    setCurrencySuccess("");
+    try {
+      await updateBaseCurrency(currency);
+      setCurrencySuccess("Currency updated successfully!");
+    } catch (err: unknown) {
+      setCurrencyError(err instanceof Error ? err.message : "Failed to update currency");
+    } finally {
+      setIsUpdatingCurrency(false);
     }
   };
 
@@ -471,6 +490,43 @@ export default function AccountPage() {
             </div>
           </SectionCard>
         )}
+
+        {/* Currency Settings */}
+        <SectionCard
+          title="Base Currency"
+          description="All amounts will be converted to this currency for reporting. New documents use this currency for conversion."
+          isDark={isDark}
+        >
+          <div className="flex items-center gap-4">
+            <select
+              value={baseCurrency}
+              onChange={(e) => handleCurrencyChange(e.target.value as CurrencyCode)}
+              disabled={isUpdatingCurrency}
+              className={`text-sm px-3 py-2 rounded-lg border outline-none flex-1 max-w-xs ${
+                isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
+              }`}
+            >
+              {SUPPORTED_CURRENCIES.map(({ code, symbol, name, region }) => (
+                <option key={code} value={code}>
+                  {code} {symbol} — {name} ({region})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => handleCurrencyChange(baseCurrency)}
+              disabled={isUpdatingCurrency}
+              className={`${primaryBtnClass} text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap`}
+            >
+              {isUpdatingCurrency ? "Saving..." : "Save"}
+            </button>
+            {currencySuccess && (
+              <span className="text-sm text-emerald-500">{currencySuccess}</span>
+            )}
+            {currencyError && (
+              <span className="text-sm text-red-500">{currencyError}</span>
+            )}
+          </div>
+        </SectionCard>
 
         {/* Integrations */}
         <SectionCard
