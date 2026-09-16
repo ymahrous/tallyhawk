@@ -34,12 +34,13 @@ This repository contains the client only. It talks to the [edocAI backend](https
 - **Vendor Intelligence** — AI fuzzy-matches raw vendor strings (e.g., "AMZN" → "Amazon"); users can merge and rename vendors while the system keeps historical data perfectly intact
 - **AI Tax Categorization** — automatic spend classification (Software, Travel, Meals, etc.) with manual override
 - **Spend Analytics Dashboard** — interactive charts (monthly trend, top vendors, category breakdown) filterable by invoice date and month/year
+- **Multi-Currency Support** — invoices are extracted in their original currency and shown converted into the user's chosen base currency, with the original amount always visible alongside it
 
 ### Account & Billing
 - **Stripe Subscriptions** — free tier (10 docs/month) and Pro tier with checkout sessions and billing portal
 - **Email/password authentication** with JWT bearer tokens, password strength validation, rate-limited login attempts, and a confirm-password flow
 - **Forgot/Reset Password** — secure, expiring token flow with HTML emails via Resend
-- **Account page** for viewing session info, changing password, managing QuickBooks connection, and exporting tax summaries
+- **Account page** for viewing session info, changing password, setting a base currency, managing QuickBooks connection, and exporting tax summaries
 
 ### UX & Design
 - **Dark/light theme** with system preference detection, cross-tab sync, and no flash on load
@@ -64,6 +65,33 @@ This repository contains the client only. It talks to the [edocAI backend](https
 | Git hooks | Husky + lint-staged |
 | CI | GitHub Actions |
 | Hosting | Vercel |
+
+---
+
+## Multi-Currency Support
+
+edocAI extracts the currency directly from each uploaded document and converts it into the user's preferred base currency, so amounts across the dashboard, analytics, and tax exports are shown in a single, consistent currency.
+
+### Setting a base currency
+
+Base currency is set from the **Account** page (`app/account/page.tsx`). It's a plain select of ISO 4217 codes (`USD`, `EUR`, `GBP`, etc.) backed by `GET`/`PATCH /api/v1/auth/settings` on the backend (see `lib/api.ts`). There's no dedicated onboarding step for it — new accounts default to `USD` until changed here.
+
+### Where currency shows up in the UI
+
+| Surface | Component | Behavior |
+|---|---|---|
+| Document dashboard | `DocumentCard.tsx` | Shows the converted amount in the user's base currency as the primary figure, with the original amount + currency shown as secondary text (e.g. "$108.50 — converted from €100.00") |
+| Spend analytics | `app/analytics/page.tsx` | Category, vendor, and monthly-trend charts are labeled and totaled in the base currency |
+| Tax summary export | Account page → "Export tax summary" | CSV download shows both original and converted amounts per line, plus a category summary total in the base currency |
+| Account page | `app/account/page.tsx` | Base currency selector; changing it takes effect for documents processed afterward |
+
+### Formatting
+
+Amounts are formatted client-side with `Intl.NumberFormat(locale, { style: "currency", currency })`, using the currency code returned by the API for each amount (not a hardcoded `"USD"`), so original-currency and converted-currency figures both render with the correct symbol and decimal conventions.
+
+### Known limitation
+
+Changing your base currency on the Account page only affects documents processed **after** the change — it does not retroactively re-convert amounts on existing documents. If you see a mix of currencies represented after switching, that reflects the underlying data, not a display bug; re-uploading or waiting for new documents to process will bring more of your history in line with the new setting.
 
 ---
 
@@ -101,7 +129,7 @@ edocai/
 │   ├── capture/
 │   │   └── page.tsx             # PWA mobile capture
 │   ├── account/
-│   │   ├── page.tsx             # Account settings
+│   │   ├── page.tsx             # Account settings (incl. base currency)
 │   │   └── layout.tsx
 │   ├── privacy/
 │   │   ├── page.tsx
@@ -114,7 +142,7 @@ edocai/
 │       └── PlanContext.tsx      # Global subscription state
 ├── components/
 │   ├── dashboard/
-│   │   ├── DocumentCard.tsx     # Document row with extraction preview & image modal
+│   │   ├── DocumentCard.tsx     # Document row with extraction preview, image modal & currency display
 │   │   ├── UploadZone.tsx
 │   │   └── Alerts.tsx
 │   ├── ui/
@@ -128,7 +156,7 @@ edocai/
 │   │   ├── PasswordToggle.tsx   # Shared show/hide password button
 │   │   └── ...                  # shadcn/ui primitives
 ├── lib/
-│   ├── api.ts                   # Backend API client
+│   ├── api.ts                   # Backend API client (incl. settings/base_currency endpoints)
 │   └── utils.ts                 # cn() helper
 ├── public/
 │   ├── logo.svg
@@ -224,6 +252,8 @@ Deployed to [Vercel](https://vercel.com). Connect the repository, set `NEXT_PUBL
 **Auth state** — JWT is stored in `localStorage`. Components that need to react to login/logout state (Navbar, landing page CTA) listen for `storage` events, which `logout()` dispatches manually to support same-tab updates.
 
 **Vendor Normalization** — The raw vendor string from the AI is stored in `extracted_data` for auditing, but the UI and analytics always prefer the normalized `vendor.canonical_name` via a SQLModel relationship. This means renaming or merging a vendor instantly updates all historical documents and charts without mutating historical JSON blobs.
+
+**Currency formatting** — Every amount rendered in the UI carries its own currency code from the API response (original or converted); components never assume `"USD"`. This keeps original-currency figures (e.g. a receipt shown in `EUR`) formatted correctly even when the account's base currency is something else.
 
 **Styling philosophy** — All components are styled directly with Tailwind utility classes and a small set of shared primitives (`PasswordToggle`, `UsageMeter`, `SyncButton`) rather than a heavy design system, keeping the bundle lean for a project this size.
 
