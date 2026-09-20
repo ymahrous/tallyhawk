@@ -1,4 +1,4 @@
-# Contributing to edocAI
+# Contributing to Tallyhawk
 
 Thank you for your interest in contributing. This document outlines the process for reporting bugs, suggesting improvements, and submitting code changes.
 
@@ -6,7 +6,7 @@ Thank you for your interest in contributing. This document outlines the process 
 
 ## Table of Contents
 
-- [Contributing to edocAI](#contributing-to-edocai)
+- [Contributing to Tallyhawk](#contributing-to-tallyhawk)
   - [Table of Contents](#table-of-contents)
   - [Code of Conduct](#code-of-conduct)
   - [Getting Started](#getting-started)
@@ -37,8 +37,8 @@ This project follows a simple rule: be respectful. Constructive criticism is wel
 1. Fork the repository
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/your-username/edocai.git
-   cd edocai
+   git clone https://github.com/your-username/tallyhawk.git
+   cd tallyhawk
    ```
 3. Install dependencies:
    ```bash
@@ -53,17 +53,17 @@ This project follows a simple rule: be respectful. Constructive criticism is wel
    npm run dev
    ```
 
-The app will be running at `http://localhost:3000`. You will also need a running instance of the [backend API](https://github.com/ymahrous/edocai-backend).
+The app will be running at `http://localhost:3000`. You will also need a running instance of the [backend API](https://github.com/ymahrous/tallyhawk-backend).
 
 ---
 
 ## How to Contribute
 
-1. Check the [open issues](https://github.com/ymahrous/edocai/issues) before starting work to avoid duplicating effort.
+1. Check the [open issues](https://github.com/ymahrous/tallyhawk/issues) before starting work to avoid duplicating effort.
 2. If no issue exists for what you want to work on, open one first and wait for confirmation before starting.
 3. Fork the repo and create your branch from `main`.
 4. Make your changes, following the code style guidelines below.
-5. Test your changes locally.
+5. Test your changes locally — run `npm run lint`, `npm run typecheck`, and `npm test` before opening a PR. Add or update tests for behavior you change.
 6. Open a pull request against `main`.
 
 ---
@@ -100,7 +100,7 @@ Follow the [Conventional Commits](https://www.conventionalcommits.org/) specific
 feat(auth): add confirm password field to signup
 fix(navbar): sync logout state on landing page
 refactor(api): replace manual token fetch with authFetch in uploadDocument
-chore: rename package name from edocai to example
+chore: rename package name from tallyhawk to example
 ```
 
 **Rules:**
@@ -115,7 +115,7 @@ chore: rename package name from edocai to example
 1. **One concern per PR** — keep PRs focused. A PR that fixes a bug and adds a feature will be asked to split.
 2. **Fill out the PR template** — describe what changed and why, not just what.
 3. **Link the related issue** — every PR should close or reference an issue.
-4. **All checks must pass** — lint, type-check, and build must be green before review.
+4. **All checks must pass** — lint, type-check, tests, and build must be green before review.
 5. **Request a review** — assign `ymahrous` as the reviewer.
 6. **No force-pushing** to a PR branch after review has started.
 
@@ -168,7 +168,7 @@ This project uses TypeScript with strict mode enabled. Follow these rules:
 
 ## Reporting Bugs
 
-Open a [GitHub Issue](https://github.com/ymahrous/edocai/issues/new) with the following information:
+Open a [GitHub Issue](https://github.com/ymahrous/tallyhawk/issues/new) with the following information:
 
 - **Description** — what happened vs. what you expected
 - **Steps to reproduce** — numbered, minimal steps
@@ -181,7 +181,7 @@ Please search existing issues before opening a new one.
 
 ## Questions and Suggesting Features
 
-Open a [GitHub Issue](https://github.com/ymahrous/edocai/issues/new) with:
+Open a [GitHub Issue](https://github.com/ymahrous/tallyhawk/issues/new) with:
 
 - **Problem** — what gap or pain point this addresses
 - **Proposed solution** — what you'd like to see

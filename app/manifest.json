@@ -1,6 +1,6 @@
 {
-  "name": "edocAI Capture",
-  "short_name": "edocAI",
+  "name": "Tallyhawk Capture",
+  "short_name": "Tallyhawk",
   "description": "Instant AI receipt and invoice capture.",
   "start_url": "/capture",
   "display": "standalone",

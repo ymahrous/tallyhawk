@@ -47,18 +47,22 @@ export default function DashboardPage() {
   const fetchingIdsRef = useRef<Set<string>>(new Set());
 
   // ── Dashboard Stats ──
+  const fetchStats = useCallback(async () => {
+    try {
+      const data = await getDashboardStats();
+      setStats(data);
+    } catch (err) {
+      console.error("Failed to fetch stats", err);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
-    const fetchStats = async () => {
-      try {
-        const data = await getDashboardStats();
-        setStats(data);
-      } catch (err) {
-        console.error("Failed to fetch stats", err);
-      }
-    };
     fetchStats();
-  }, [isAuthenticated, documents]);
+  }, [isAuthenticated, documents, fetchStats]);
+
+  // ── Base currency change (backend reconverts existing documents in the background) ──
+  const [reconvertingCurrency, setReconvertingCurrency] = useState(false);
 
   // ── UI State ──
   const [isUploading, setIsUploading] = useState(false);
@@ -94,6 +98,21 @@ export default function DashboardPage() {
     schedule();
     return () => { if (intervalRef.current) clearTimeout(intervalRef.current); if (controllerRef.current) controllerRef.current.abort(); };
   }, [isAuthenticated, fetchDocs]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const handleCurrencyChanged = () => {
+      setReconvertingCurrency(true);
+      const timer = setTimeout(() => {
+        fetchStats();
+        fetchDocs();
+        setReconvertingCurrency(false);
+      }, 4000);
+      return () => clearTimeout(timer);
+    };
+    window.addEventListener("tallyhawk:currency-changed", handleCurrencyChanged);
+    return () => window.removeEventListener("tallyhawk:currency-changed", handleCurrencyChanged);
+  }, [isAuthenticated, fetchStats, fetchDocs]);
 
   // ── Extractions ──
   useEffect(() => {
@@ -192,10 +211,16 @@ export default function DashboardPage() {
           <div className="space-y-4">
             <UsageMeter />
             {limitError && (
-              <UpgradePrompt 
-                title="Free Tier Limit Reached" 
-                message="You've used all 10 of your monthly document uploads. Upgrade to Pro for unlimited processing, QuickBooks sync, and more." 
+              <UpgradePrompt
+                title="Free Tier Limit Reached"
+                message="You've used all 10 of your monthly document uploads. Upgrade to Pro for unlimited processing, QuickBooks sync, and more."
               />
+            )}
+            {reconvertingCurrency && (
+              <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${isDark ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-300" : "bg-indigo-50 border-indigo-200 text-indigo-700"}`}>
+                <div className="animate-spin h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full shrink-0" />
+                <p className="text-sm">We&apos;re updating your existing documents to the new currency…</p>
+              </div>
             )}
           </div>
         </div>
@@ -217,6 +242,11 @@ export default function DashboardPage() {
               <p className={`text-lg sm:text-xl font-semibold wrap-break-word ${isDark ? "text-white" : "text-gray-900"}`}>
                 {formatCurrency(stats.month_spend, baseCurrency as CurrencyCode)}
               </p>
+              {!!stats.excluded_from_month_spend && (
+                <p className={`text-[11px] mt-1 ${isDark ? "text-amber-500" : "text-amber-600"}`}>
+                  {stats.excluded_from_month_spend} pending conversion, not included
+                </p>
+              )}
             </div>
           </div>
         )}

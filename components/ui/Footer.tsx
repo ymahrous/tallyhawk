@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useTheme } from "@/app/providers/ThemeContext";
+import { useCookieConsent } from "@/app/providers/CookieConsentContext";
 
 export default function Footer() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const { reopen } = useCookieConsent();
 
   const linkClass = `text-sm transition-colors ${
     isDark ? "text-gray-500 hover:text-white" : "text-gray-400 hover:text-gray-900"
@@ -22,7 +24,7 @@ export default function Footer() {
           <div className="col-span-2 md:col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <span className={`text-lg font-semibold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
-                edocAI
+                Tallyhawk
               </span>
             </div>
             <p className={`text-sm leading-relaxed max-w-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
@@ -75,6 +77,16 @@ export default function Footer() {
                   Privacy Policy
                 </Link>
               </li>
+              <li>
+                <Link href="/accessibility" className={linkClass}>
+                  Accessibility
+                </Link>
+              </li>
+              <li>
+                <button onClick={reopen} className={linkClass}>
+                  Cookie Preferences
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -85,7 +97,7 @@ export default function Footer() {
           isDark ? "border-white/10" : "border-gray-200"
         }`}>
           <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>
-            © {new Date().getFullYear()} Yousef Mahrous. All rights reserved.
+            © {new Date().getFullYear()} Tallyhawk. All rights reserved.
           </p>
           <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>
             Built for freelancers, by a freelancer.

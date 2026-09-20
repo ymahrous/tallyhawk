@@ -14,7 +14,7 @@ function AlertIcon() {
 export function UploadError({ message, onDismiss }: AlertProps) {
   if (!message) return null;
   return (
-    <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+    <div role="alert" className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
       <AlertIcon />
       <p className="text-sm text-red-500">{message}</p>
       <button onClick={onDismiss} className="ml-auto text-red-400 hover:text-red-300" aria-label="Dismiss error">
@@ -27,7 +27,7 @@ export function UploadError({ message, onDismiss }: AlertProps) {
 export function DeleteError({ message, onDismiss }: AlertProps) {
   if (!message) return null;
   return (
-    <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+    <div role="alert" className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
       <AlertIcon />
       <p className="text-sm text-red-500">{message}</p>
       <button onClick={onDismiss} className="ml-auto text-red-400 hover:text-red-300" aria-label="Dismiss error">

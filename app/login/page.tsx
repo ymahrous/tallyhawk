@@ -124,23 +124,26 @@ export default function LoginPage() {
             Welcome back
           </h1>
           <p className={`text-sm mt-2 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-            Sign in to your edocAI account
+            Sign in to your Tallyhawk account
           </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="relative">
+            <label htmlFor="login-email" className="sr-only">Email address</label>
             <input
+              id="login-email"
               type="email"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
                 setEmailError(validateEmail(e.target.value));
               }}
+              aria-invalid={!!emailError}
               className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors placeholder:text-opacity-40 ${
-                isDark 
-                  ? "border-gray-700 text-white focus:border-white placeholder-gray-500" 
+                isDark
+                  ? "border-gray-700 text-white focus:border-white placeholder-gray-500"
                   : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
               }`}
               placeholder="Email address"
@@ -148,24 +151,26 @@ export default function LoginPage() {
             />
 
             {emailError && (
-              <p className="text-xs text-amber-500 mt-1">{emailError}</p>
+              <p role="alert" className="text-xs text-amber-500 mt-1">{emailError}</p>
             )}
           </div>
 
           <div className="relative">
+            <label htmlFor="login-password" className="sr-only">Password</label>
             <input
+              id="login-password"
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors placeholder:text-opacity-40 pr-10 ${
-                isDark 
-                  ? "border-gray-700 text-white focus:border-white placeholder-gray-500" 
+                isDark
+                  ? "border-gray-700 text-white focus:border-white placeholder-gray-500"
                   : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
               }`}
               placeholder="Password"
               required
             />
-            
+
             <PasswordToggle
               show={showPassword}
               onToggle={() => setShowPassword(!showPassword)}
@@ -174,7 +179,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="text-sm text-red-500 font-medium bg-red-500/10 px-4 py-2 rounded-lg">
+            <p role="alert" className="text-sm text-red-500 font-medium bg-red-500/10 px-4 py-2 rounded-lg">
               {error}
             </p>
           )}

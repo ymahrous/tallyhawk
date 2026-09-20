@@ -3,34 +3,82 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
-import { Analytics } from "@vercel/analytics/next";
 import { PlanProvider } from "./providers/PlanContext";
+import AnalyticsGate from "@/components/ui/AnalyticsGate";
 import { SettingsProvider } from "./providers/SettingsContext";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { SpeedInsights } from "@vercel/speed-insights/next"
 import FeedbackButton from "@/components/ui/FeedbackButton";
 import { ThemeProvider, themeScript } from "./providers/ThemeContext";
+import CookieConsentBanner from "@/components/ui/CookieConsentBanner";
+import { CookieConsentProvider } from "./providers/CookieConsentContext";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
+const SITE_URL = "https://tallyhawk.vercel.app";
+const SITE_DESCRIPTION =
+  "Tallyhawk turns invoices and receipts into structured, tax-ready data with AI — then syncs it straight to QuickBooks Online. Built for freelancers and small business owners.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "edocAI | Automated Document Processing",
-    template: "%s | edocAI",
+    default: "Tallyhawk | AI Invoice & Receipt Processing for Freelancers",
+    template: "%s | Tallyhawk",
   },
-  description: "AI-powered financial document automation.",
-  keywords: ["AI", "Machine Learning", "Document Extraction", "OCR", "FastAPI", "Next.js"],
+  description: SITE_DESCRIPTION,
+  keywords: [
+    "invoice processing software",
+    "receipt scanning app",
+    "AI expense tracking",
+    "QuickBooks sync",
+    "tax categorization",
+    "freelancer bookkeeping",
+    "document extraction",
+    "OCR invoices",
+    "small business accounting",
+  ],
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://edocai.vercel.app",
-    siteName: "edocAI",
-    title: "edocAI | Automated Document Processing",
-    description: "AI-powered financial document automation.",
+    url: SITE_URL,
+    siteName: "Tallyhawk",
+    title: "Tallyhawk | AI Invoice & Receipt Processing for Freelancers",
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tallyhawk | AI Invoice & Receipt Processing for Freelancers",
+    description: SITE_DESCRIPTION,
   },
   robots: { index: true, follow: true },
   manifest: "/manifest.json",
+};
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "Tallyhawk",
+      url: SITE_URL,
+      logo: `${SITE_URL}/logo.svg`,
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}/#software`,
+      name: "Tallyhawk",
+      url: SITE_URL,
+      description: SITE_DESCRIPTION,
+      applicationCategory: "FinanceApplication",
+      operatingSystem: "Web",
+      offers: [
+        { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD" },
+        { "@type": "Offer", name: "Pro", price: "5", priceCurrency: "USD" },
+      ],
+    },
+  ],
 };
 
 
@@ -39,35 +87,41 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
       </head>
       <body className={`${inter.className} ${jetbrainsMono.className} antialiased`}>
-        <ThemeProvider>
-          <PlanProvider>
-            <SettingsProvider>
-              <header>
-                <Suspense fallback={null}>
-                  <Navbar />
-                </Suspense>
-              </header>
-              <div className="min-h-screen flex flex-col">
-                <main className="grow">
+        <CookieConsentProvider>
+          <ThemeProvider>
+            <PlanProvider>
+              <SettingsProvider>
+                <header>
                   <Suspense fallback={null}>
-                    {children}
+                    <Navbar />
                   </Suspense>
-                </main>
-                <Suspense fallback={null}>
-                  <FeedbackButton />
-                </Suspense>
-                <Suspense fallback={null}>
-                  <Footer />
-                </Suspense>
-              </div>
-            </SettingsProvider>
-          </PlanProvider>
-        </ThemeProvider>
+                </header>
+                <div className="min-h-screen flex flex-col">
+                  <main className="grow">
+                    <Suspense fallback={null}>
+                      {children}
+                    </Suspense>
+                  </main>
+                  <Suspense fallback={null}>
+                    <FeedbackButton />
+                  </Suspense>
+                  <Suspense fallback={null}>
+                    <Footer />
+                  </Suspense>
+                </div>
+              </SettingsProvider>
+            </PlanProvider>
+          </ThemeProvider>
+          <CookieConsentBanner />
+          <AnalyticsGate />
+        </CookieConsentProvider>
       </body>
-      <Analytics />
-      <SpeedInsights />
     </html>
   );
 }

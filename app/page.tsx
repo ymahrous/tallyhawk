@@ -81,7 +81,7 @@ export default function LandingPage() {
               <div className="w-3 h-3 rounded-full bg-red-500/80" />
               <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
               <div className="w-3 h-3 rounded-full bg-green-500/80" />
-              <span className={`ml-4 text-xs font-mono ${isDark ? "text-gray-500" : "text-gray-400"}`}>edocAI Dashboard</span>
+              <span className={`ml-4 text-xs font-mono ${isDark ? "text-gray-500" : "text-gray-400"}`}>Tallyhawk Dashboard</span>
             </div>
 
             {/* Fake Dashboard UI */}

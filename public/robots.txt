@@ -6,6 +6,7 @@ Allow: /forgot-password
 Allow: /pricing
 Allow: /privacy
 Allow: /terms
+Allow: /accessibility
 Disallow: /app
 Disallow: /account
 Disallow: /billing
@@ -14,4 +15,4 @@ Disallow: /vendors
 Disallow: /analytics
 Disallow: /reset-password
 
-Sitemap: https://edocai.vercel.app/sitemap.xml
+Sitemap: https://tallyhawk.vercel.app/sitemap.xml

@@ -22,9 +22,13 @@ export default function PrivacyPolicy() {
 
         <div className="space-y-8">
           <p>
-            This Privacy Policy describes how edocAI ("we," "us," or "our") collects, uses, and protects information
+            This Privacy Policy describes how Tallyhawk ("we," "us," or "our") collects, uses, and protects information
             when you use our web application and API. We are committed to minimizing data
-            collection, ensuring data portability, and maximizing transparency in compliance with global data protection regulations including GDPR and CCPA.
+            collection, ensuring data portability, and maximizing transparency in compliance with applicable data
+            protection laws, including the EU/UK General Data Protection Regulation (GDPR), the California Consumer
+            Privacy Act as amended by the CPRA, and Canada's Personal Information Protection and Electronic Documents
+            Act (PIPEDA). Regardless of where you are located, we apply the same data-handling standards described
+            below.
           </p>
 
           {/* Section 1 */}
@@ -93,8 +97,8 @@ export default function PrivacyPolicy() {
           {[
             {
               id: "4",
-              title: "4. Your Data Rights (GDPR & CCPA)",
-              content: "Under GDPR and CCPA, you have the following rights regarding your personal data: \n\n• Right to Access & Portability: You can request a copy of your data in a machine-readable format (e.g., JSON export of your documents). \n• Right to Rectification: You can correct inaccurate personal data. \n• Right to Erasure: You can delete your account and all associated documents directly from your Account Settings. Upon deletion, your data is purged from our primary databases and storage buckets within 48 hours. Residual backups containing your data may persist for up to 30 days before automatic expiration. \n• Right to Object / Restrict Processing: You can request that we stop processing your data while retaining your account. \n• Right to Non-Discrimination (CCPA): Exercising your privacy rights will not result in discriminatory treatment. We do not sell your personal information, and there is no opt-out required for data sales.",
+              title: "4. Your Data Rights (GDPR, UK GDPR, CCPA/CPRA, PIPEDA & Other Frameworks)",
+              content: "Depending on where you live, you may have the following rights regarding your personal data. We honor these rights for all users, not only where legally mandated: \n\n• Right to Access & Portability: You can request a copy of your data in a machine-readable format (e.g., JSON export of your documents). \n• Right to Rectification: You can correct inaccurate personal data. \n• Right to Erasure: You can delete your account and all associated documents directly from your Account Settings. Upon deletion, your data is purged from our primary databases and storage buckets within 48 hours. Residual backups containing your data may persist for up to 30 days before automatic expiration. \n• Right to Object / Restrict Processing: You can request that we stop processing your data while retaining your account. \n• Right to Non-Discrimination (CCPA/CPRA): Exercising your privacy rights will not result in discriminatory treatment. \n• Do Not Sell or Share (CCPA/CPRA): We do not sell or share your personal information with third parties for cross-context behavioral advertising, so there is nothing to opt out of. \n• Sensitive Personal Information (CPRA): Documents you upload may contain sensitive financial information. We use it solely to provide the Service (extraction, categorization, sync) and do not use it to infer characteristics about you. \n\nTo exercise any of these rights, use Account Settings where available, or contact us as described in Section 11. We may need to verify your identity before fulfilling a request.",
             },
             {
               id: "5",
@@ -109,7 +113,7 @@ export default function PrivacyPolicy() {
             {
               id: "7",
               title: "7. Cookies and Local Storage",
-              content: "We use your browser's localStorage exclusively to store your JWT access token so you remain logged in. We do not use traditional tracking cookies. Clearing your browser data will log you out but will not delete your account or documents from our servers.",
+              content: "We use your browser's localStorage for two purposes: storing your JWT access token so you remain logged in, and remembering your preferences (theme, base currency, analytics consent choice). We do not use traditional tracking cookies. Clearing your browser data will log you out but will not delete your account or documents from our servers. \n\nWith your consent (via the banner shown on your first visit, or reopened anytime from the \"Cookie Preferences\" link in the footer), we load Vercel Analytics and Vercel Speed Insights, which are cookieless, aggregate analytics tools that do not identify you personally. If you decline or don't respond, these tools are not loaded at all.",
             },
             {
               id: "8",

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Analytics",
-  description: "View your edocAI analytics and insights.",
+  description: "View your Tallyhawk analytics and insights.",
   robots: { index: false, follow: false },
 };
 

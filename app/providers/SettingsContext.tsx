@@ -23,7 +23,7 @@ const SettingsContext = createContext<SettingsData>({
 // Helper function to read initial settings from localStorage if available
 function getInitialBaseCurrency(): CurrencyCode {
   if (typeof window === "undefined") return "USD";
-  const stored = localStorage.getItem("edocai_base_currency");
+  const stored = localStorage.getItem("tallyhawk_base_currency");
   if (stored) return stored as CurrencyCode;
   return "USD";
 }
@@ -38,10 +38,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const data = await getSettings();
       setBaseCurrency(data.base_currency as CurrencyCode);
       setPlan(data.plan);
-      localStorage.setItem("edocai_base_currency", data.base_currency);
+      localStorage.setItem("tallyhawk_base_currency", data.base_currency);
     } catch {
       // If API fails, keep the stored value or default
-      const stored = localStorage.getItem("edocai_base_currency");
+      const stored = localStorage.getItem("tallyhawk_base_currency");
       if (stored) {
         setBaseCurrency(stored as CurrencyCode);
       }
@@ -52,21 +52,21 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const updateBaseCurrency = async (currency: CurrencyCode) => {
     setBaseCurrency(currency);
-    localStorage.setItem("edocai_base_currency", currency);
+    localStorage.setItem("tallyhawk_base_currency", currency);
     try {
       await updateSettings(currency);
       // Notify other components of currency change
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("edocai:currency-changed", {
+        window.dispatchEvent(new CustomEvent("tallyhawk:currency-changed", {
           detail: { currency }
         }));
       }
     } catch (error) {
       // Revert on error
-      const stored = localStorage.getItem("edocai_base_currency");
+      const stored = localStorage.getItem("tallyhawk_base_currency");
       const fallback = stored ? (stored as CurrencyCode) : "USD";
       setBaseCurrency(fallback);
-      localStorage.setItem("edocai_base_currency", fallback);
+      localStorage.setItem("tallyhawk_base_currency", fallback);
       throw error;
     }
   };
@@ -87,7 +87,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setBaseCurrency("USD");
         setPlan("free");
         setIsLoading(false);
-        localStorage.removeItem("edocai_base_currency");
+        localStorage.removeItem("tallyhawk_base_currency");
       }
     };
     window.addEventListener("storage", syncAuth);
@@ -112,8 +112,8 @@ export function useCurrencyChange() {
     const handleChange = (e: CustomEvent) => {
       forceUpdate({});
     };
-    window.addEventListener("edocai:currency-changed", handleChange as EventListener);
-    return () => window.removeEventListener("edocai:currency-changed", handleChange as EventListener);
+    window.addEventListener("tallyhawk:currency-changed", handleChange as EventListener);
+    return () => window.removeEventListener("tallyhawk:currency-changed", handleChange as EventListener);
   }, []);
 
   return baseCurrency;

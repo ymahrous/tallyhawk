@@ -61,10 +61,12 @@ function InputField({
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === "password";
   const inputType = isPassword && showPassword ? "text" : type;
+  const inputId = `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
+  const errorId = `${inputId}-error`;
 
   return (
     <div className="space-y-1.5">
-      <label className={`text-xs font-medium uppercase tracking-wider ${
+      <label htmlFor={inputId} className={`text-xs font-medium uppercase tracking-wider ${
         isDark ? "text-gray-400" : "text-gray-500"
       }`}>
         {label}
@@ -72,11 +74,14 @@ function InputField({
 
       <div className="relative flex items-center">
         <input
+          id={inputId}
           type={inputType}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
           className={`w-full text-sm px-4 py-3 rounded-xl border outline-none transition-colors ${
             isPassword ? "pr-12" : ""
           } ${
@@ -115,7 +120,7 @@ function InputField({
         )}
       </div>
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p id={errorId} role="alert" className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }
@@ -254,7 +259,7 @@ export default function AccountPage() {
     setCurrencySuccess("");
     try {
       await updateBaseCurrency(currency);
-      setCurrencySuccess("Currency updated successfully!");
+      setCurrencySuccess("Currency updated! We're updating your existing documents to match — this may take a few seconds.");
     } catch (err: unknown) {
       setCurrencyError(err instanceof Error ? err.message : "Failed to update currency");
     } finally {
@@ -416,7 +421,7 @@ export default function AccountPage() {
               </div>
               <div>
                 <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
-                  {currentPlan === "pro" ? "edocAI Pro" : "Free Tier"}
+                  {currentPlan === "pro" ? "Tallyhawk Pro" : "Free Tier"}
                 </p>
                 <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
                   {currentPlan === "pro" ? "Unlimited documents & integrations" : "10 documents / month"}
@@ -470,6 +475,7 @@ export default function AccountPage() {
               <select
                 value={exportYear}
                 onChange={(e) => setExportYear(Number(e.target.value))}
+                aria-label="Tax summary export year"
                 className={`text-sm px-3 py-2 rounded-lg border outline-none ${
                   isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
                 }`}
@@ -502,6 +508,7 @@ export default function AccountPage() {
               value={baseCurrency}
               onChange={(e) => handleCurrencyChange(e.target.value as CurrencyCode)}
               disabled={isUpdatingCurrency}
+              aria-label="Base currency"
               className={`text-sm px-3 py-2 rounded-lg border outline-none flex-1 max-w-xs ${
                 isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"
               }`}
@@ -520,10 +527,10 @@ export default function AccountPage() {
               {isUpdatingCurrency ? "Saving..." : "Save"}
             </button>
             {currencySuccess && (
-              <span className="text-sm text-emerald-500">{currencySuccess}</span>
+              <span role="status" className="text-sm text-emerald-500">{currencySuccess}</span>
             )}
             {currencyError && (
-              <span className="text-sm text-red-500">{currencyError}</span>
+              <span role="alert" className="text-sm text-red-500">{currencyError}</span>
             )}
           </div>
         </SectionCard>
@@ -658,12 +665,12 @@ export default function AccountPage() {
             />
 
             {passwordError && (
-              <p className="text-sm text-red-500 bg-red-500/10 px-4 py-2 rounded-lg">
+              <p role="alert" className="text-sm text-red-500 bg-red-500/10 px-4 py-2 rounded-lg">
                 {passwordError}
               </p>
             )}
             {passwordSuccess && (
-              <p className="text-sm text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-lg">
+              <p role="status" className="text-sm text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-lg">
                 {passwordSuccess}
               </p>
             )}
@@ -710,7 +717,7 @@ export default function AccountPage() {
             </div>
 
             {deleteError && (
-              <p className="text-sm text-red-500 bg-red-500/10 px-4 py-2 rounded-lg">
+              <p role="alert" className="text-sm text-red-500 bg-red-500/10 px-4 py-2 rounded-lg">
                 {deleteError}
               </p>
             )}

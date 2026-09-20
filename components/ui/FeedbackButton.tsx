@@ -120,7 +120,7 @@ export default function FeedbackButton() {
             onChange={(e) => setText(e.target.value)}
             placeholder={
               activeType === "Suggestion"
-                ? "What would make edocAI better?"
+                ? "What would make Tallyhawk better?"
                 : activeType === "Bug"
                 ? "What went wrong?"
                 : "Tell us what's on your mind..."

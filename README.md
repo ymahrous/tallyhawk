@@ -1,15 +1,15 @@
 <div align="center">
 
-# edocAI
+# Tallyhawk
 
-**The web client for edocAI, an AI-powered financial document processing platform.**
+**The web client for Tallyhawk, an AI-powered financial document processing platform.**
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38BDF8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-edocai.vercel.app-0070F3?logo=vercel&logoColor=white)](https://edocai.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-tallyhawk.vercel.app-0070F3?logo=vercel&logoColor=white)](https://tallyhawk.vercel.app)
 
 </div>
 
@@ -17,9 +17,9 @@
 
 ## Overview
 
-This is the Next.js frontend for edocAI, a SaaS platform where solo founders and freelancers upload invoices and receipts to extract structured data, categorize spend, and sync directly to QuickBooks Online.
+This is the Next.js frontend for Tallyhawk, a SaaS platform where solo founders and freelancers upload invoices and receipts to extract structured data, categorize spend, and sync directly to QuickBooks Online.
 
-This repository contains the client only. It talks to the [edocAI backend](https://github.com/ymahrous/edocai-backend) (FastAPI + Celery + Google Gemini) over a REST API and renders no AI logic itself.
+This repository contains the client only. It talks to the [Tallyhawk backend](https://github.com/ymahrous/tallyhawk-backend) (FastAPI + Celery + Google Gemini) over a REST API and renders no AI logic itself.
 
 ---
 
@@ -62,6 +62,7 @@ This repository contains the client only. It talks to the [edocAI backend](https
 | Icons | lucide-react |
 | Language | TypeScript (strict mode) |
 | Linting | ESLint (`eslint-config-next`), Prettier |
+| Testing | Vitest + React Testing Library (jsdom) |
 | Git hooks | Husky + lint-staged |
 | CI | GitHub Actions |
 | Hosting | Vercel |
@@ -70,7 +71,7 @@ This repository contains the client only. It talks to the [edocAI backend](https
 
 ## Multi-Currency Support
 
-edocAI extracts the currency directly from each uploaded document and converts it into the user's preferred base currency, so amounts across the dashboard, analytics, and tax exports are shown in a single, consistent currency.
+Tallyhawk extracts the currency directly from each uploaded document and converts it into the user's preferred base currency, so amounts across the dashboard, analytics, and tax exports are shown in a single, consistent currency.
 
 ### Setting a base currency
 
@@ -89,16 +90,16 @@ Base currency is set from the **Account** page (`app/account/page.tsx`). It's a 
 
 Amounts are formatted client-side with `Intl.NumberFormat(locale, { style: "currency", currency })`, using the currency code returned by the API for each amount (not a hardcoded `"USD"`), so original-currency and converted-currency figures both render with the correct symbol and decimal conventions.
 
-### Known limitation
+### Changing your base currency
 
-Changing your base currency on the Account page only affects documents processed **after** the change — it does not retroactively re-convert amounts on existing documents. If you see a mix of currencies represented after switching, that reflects the underlying data, not a display bug; re-uploading or waiting for new documents to process will bring more of your history in line with the new setting.
+Changing your base currency on the Account page kicks off a background job on the backend that re-converts all of your existing documents into the new currency. This settles within a few seconds, but there's no dedicated "reconversion complete" signal yet — documents not yet reconverted are excluded from dashboard/analytics totals (`excluded_from_month_spend` on `GET /api/v1/stats/dashboard`) rather than shown with a stale conversion, so totals may briefly undercount immediately after a currency change.
 
 ---
 
 ## Project Structure
 
 ```
-edocai/
+tallyhawk/
 ├── app/
 │   ├── page.tsx                 # Landing page with live UI mockup
 │   ├── layout.tsx               # Root layout, fonts, metadata, theme script
@@ -162,7 +163,9 @@ edocai/
 │   ├── logo.svg
 │   ├── favicon.svg
 │   └── robots.txt
-├── .github/workflows/ci.yml     # Lint, type-check, build
+├── .github/workflows/ci.yml     # Lint, type-check, test, build
+├── vitest.config.mts            # Vitest (jsdom) config
+├── vitest.setup.ts              # jest-dom matchers + RTL cleanup
 ├── .husky/pre-commit
 ├── .lintstagedrc.json
 ├── .prettierrc
@@ -175,14 +178,14 @@ edocai/
 
 ### Prerequisites
 
-- Node.js 20+
-- A running instance of the [edocAI backend](https://github.com/ymahrous/edocai-backend), locally or deployed
+- Node.js 24+ (the test toolchain requires ≥22.12; CI runs on 24)
+- A running instance of the [Tallyhawk backend](https://github.com/ymahrous/tallyhawk-backend), locally or deployed
 
 ### Setup
 
 ```bash
-git clone https://github.com/ymahrous/edocai.git
-cd edocai
+git clone https://github.com/ymahrous/tallyhawk.git
+cd tallyhawk
 npm install
 cp .env.example .env.local
 ```
@@ -204,10 +207,13 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Available Scripts
 
 ```bash
-npm run dev      # Start the dev server
-npm run build    # Production build
-npm run start    # Start the production server
-npm run lint     # Run ESLint
+npm run dev        # Start the dev server
+npm run build      # Production build
+npm run start      # Start the production server
+npm run lint       # Run ESLint
+npm run typecheck  # tsc --noEmit
+npm test           # Run unit + component tests once
+npm run test:watch # Run tests in watch mode
 ```
 
 ---
@@ -225,13 +231,14 @@ No setup needed — hooks are installed automatically via `npm install` (`prepar
 
 ## Continuous Integration
 
-Every push and pull request to `main` runs:
+Every push, and every pull request to `main`, runs:
 
 1. `npm run lint`
-2. `npx tsc --noEmit`
-3. `npm run build`
+2. `npm run typecheck`
+3. `npm test`
+4. `npm run build`
 
-See `.github/workflows/ci.yml`. The build step requires a `NEXT_PUBLIC_API_URL` repository secret pointing to a reachable backend URL.
+See `.github/workflows/ci.yml`. The build step reads `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, and `NEXT_PUBLIC_S3_BUCKET_URL` from repository secrets — add them under Settings → Secrets and variables → Actions so the built bundle points at a reachable backend.
 
 ---
 
@@ -241,7 +248,7 @@ Deployed to [Vercel](https://vercel.com). Connect the repository, set `NEXT_PUBL
 
 | Variable | Required | Description |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | ✅ | Base URL of the edocAI backend API |
+| `NEXT_PUBLIC_API_URL` | ✅ | Base URL of the Tallyhawk backend API |
 
 ---
 
@@ -261,7 +268,7 @@ Deployed to [Vercel](https://vercel.com). Connect the repository, set `NEXT_PUBL
 
 ## Related Repositories
 
-- [edocai-backend](https://github.com/ymahrous/edocai-backend) — FastAPI + Celery + Google Gemini backend
+- [tallyhawk-backend](https://github.com/ymahrous/tallyhawk-backend) — FastAPI + Celery + Google Gemini backend
 
 ---
 

@@ -36,8 +36,9 @@ export interface Extraction {
   vendor?: VendorData | null;
   original_currency?: string;
   original_amount?: number;
-  converted_amount?: number;
-  exchange_rate?: number;
+  converted_amount?: number | null;
+  converted_currency?: string | null;
+  exchange_rate?: number | null;
   base_currency?: string;  // User's base currency when extracted
 }
 
@@ -211,7 +212,7 @@ export async function exportTaxSummary(year: number): Promise<void> {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `edocAI_Tax_Summary_${year}.csv`;
+  a.download = `Tallyhawk_Tax_Summary_${year}.csv`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -321,6 +322,7 @@ export interface DashboardStats {
   synced: number;
   month_spend: number;
   base_currency?: string;
+  excluded_from_month_spend?: number;
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {

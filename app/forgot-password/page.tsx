@@ -61,13 +61,16 @@ export default function ForgotPasswordPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="relative">
+            <label htmlFor="forgot-email" className="sr-only">Email address</label>
             <input
+              id="forgot-email"
               type="email"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
                 setEmailError(validateEmail(e.target.value));
               }}
+              aria-invalid={!!emailError}
               className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors ${
                 isDark ? "border-gray-700 text-white focus:border-white placeholder-gray-500" : "border-gray-200 text-gray-900 focus:border-black placeholder-gray-400"
               }`}
@@ -76,9 +79,9 @@ export default function ForgotPasswordPage() {
             />
           </div>
 
-          {emailError && <p className="text-xs text-amber-500 mt-1">{emailError}</p>}
-          {error && <p className="text-sm text-red-500 bg-red-500/10 px-4 py-2 rounded-lg">{error}</p>}
-          {message && <p className="text-sm text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-lg">{message}</p>}
+          {emailError && <p role="alert" className="text-xs text-amber-500 mt-1">{emailError}</p>}
+          {error && <p role="alert" className="text-sm text-red-500 bg-red-500/10 px-4 py-2 rounded-lg">{error}</p>}
+          {message && <p role="status" className="text-sm text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-lg">{message}</p>}
 
           <button
             type="submit"

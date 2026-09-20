@@ -106,7 +106,7 @@ export default function ResetPasswordPage() {
 
         {success ? (
           <div className="text-center">
-            <p className="text-sm text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-lg mb-4">
+            <p role="status" className="text-sm text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-lg mb-4">
               Password updated! Redirecting to login...
             </p>
           </div>
@@ -115,7 +115,9 @@ export default function ResetPasswordPage() {
             
             {/* New Password Input Block */}
             <div className="relative flex items-center">
+              <label htmlFor="reset-new-password" className="sr-only">New password</label>
               <input
+                id="reset-new-password"
                 type={showPassword ? "text" : "password"}
                 value={newPassword}
                 onChange={(e) => {
@@ -169,12 +171,14 @@ export default function ResetPasswordPage() {
 
             {/* Password validation error */}
             {passwordError && (
-              <p className="text-xs text-amber-500 mt-1">{passwordError}</p>
+              <p role="alert" className="text-xs text-amber-500 mt-1">{passwordError}</p>
             )}
 
             {/* Confirm Password Input Block */}
             <div className="relative">
+              <label htmlFor="reset-confirm-password" className="sr-only">Confirm new password</label>
               <input
+                id="reset-confirm-password"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -188,7 +192,7 @@ export default function ResetPasswordPage() {
               />
             </div>
 
-            {error && <p className="text-sm text-red-500 font-medium bg-red-500/10 px-4 py-2 rounded-lg">{error}</p>}
+            {error && <p role="alert" className="text-sm text-red-500 font-medium bg-red-500/10 px-4 py-2 rounded-lg">{error}</p>}
 
             <button
               type="submit"

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Login",
-  description: "Sign in to your edocAI account to access your document dashboard.",
+  description: "Sign in to your Tallyhawk account to access your document dashboard.",
+  alternates: { canonical: "/login" },
   robots: { index: false, follow: false },
 };
 

@@ -54,7 +54,7 @@ export default function CapturePage() {
                 : "text-white hover:text-white/80 transition"}`}>
             ← Back
           </button>
-          <h1 className="text-sm font-semibold font-mono">edocAI</h1>
+          <h1 className="text-sm font-semibold font-mono">Tallyhawk</h1>
           <div className="w-12" /> {/* Spacer for centering */}
         </div>
       </div>

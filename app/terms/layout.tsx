@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "Read the edocAI terms of service before using the platform.",
+  description: "Read the Tallyhawk terms of service before using the platform.",
+  alternates: { canonical: "/terms" },
+  openGraph: {
+    title: "Tallyhawk Terms of Service",
+    description: "Read the Tallyhawk terms of service before using the platform.",
+  },
   robots: { index: true, follow: true },
 };
 
