@@ -6,3 +6,33 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
+
+/* Native form controls and scrollbars follow the app's theme toggle, not just the OS setting. */
+:root.light {
+  color-scheme: light;
+  --grid-line: rgb(0 0 0 / 0.05);
+}
+
+:root.dark {
+  color-scheme: dark;
+  --grid-line: rgb(255 255 255 / 0.06);
+}
+
+/* Anchor jumps (/#features, /#faq) land below the fixed navbar. */
+html {
+  scroll-padding-top: 5.5rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Faint blueprint grid behind marketing heroes. */
+@utility bg-grid {
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+}

@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
+import JsonLd from "@/components/seo/JsonLd";
+import { pageMetadata } from "@/lib/seo";
+import { simplePageGraph } from "@/lib/structured-data";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description: "Learn how Tallyhawk collects, uses, and protects your data.",
-  alternates: { canonical: "/privacy" },
-  openGraph: {
-    title: "Tallyhawk Privacy Policy",
-    description: "Learn how Tallyhawk collects, uses, and protects your data.",
-  },
-  robots: { index: true, follow: true },
-};
+const TITLE = "Privacy Policy";
+const DESCRIPTION =
+  "How Tallyhawk collects, stores and protects your documents and account data, which providers process it, and your rights under GDPR, CCPA and PIPEDA.";
+
+export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: "/privacy" });
 
 export default function PrivacyLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      <JsonLd data={simplePageGraph({ path: "/privacy", name: TITLE, description: DESCRIPTION })} />
+      {children}
+    </>
+  );
 }

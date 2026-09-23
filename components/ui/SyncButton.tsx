@@ -73,7 +73,7 @@ export default function SyncButton({ documentId, qbConnected, initialSyncedStatu
   // 2. Pro but not connected
   if (!qbConnected) {
     return (
-      <span className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+      <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
         Connect QB to sync
       </span>
     );

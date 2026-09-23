@@ -23,7 +23,7 @@ export default function UsageMeter() {
           </div>
           <div>
             <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>Unlimited Plan</p>
-            <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>Process as many documents as you need</p>
+            <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>Process as many documents as you need</p>
           </div>
         </div>
         <button 

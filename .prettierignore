@@ -2,3 +2,8 @@
 node_modules
 public
 package-lock.json
+.next-e2e
+coverage
+playwright-report
+test-results
+assets

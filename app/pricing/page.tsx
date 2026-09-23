@@ -1,172 +1,92 @@
-"use client";
+import type { Metadata } from "next";
+import { Check, X } from "lucide-react";
+import JsonLd from "@/components/seo/JsonLd";
+import FaqList from "@/components/marketing/FaqList";
+import PricingPlans from "@/components/pricing/PricingPlans";
+import SectionHeading from "@/components/marketing/SectionHeading";
+import { pageMetadata } from "@/lib/seo";
+import { PRICING_FAQ } from "@/lib/marketing";
+import { PLAN_COMPARISON, type ComparisonRow } from "@/lib/pricing";
+import { breadcrumbSchema, faqPageSchema, jsonLdGraph, softwareApplicationSchema, webPageSchema } from "@/lib/structured-data";
 
-import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { useTheme } from "@/app/providers/ThemeContext";
-import { createCheckoutSession, decodeToken, getUsage } from "@/lib/api";
+const TITLE = "Pricing";
+const DESCRIPTION =
+  "Tallyhawk pricing: start free with 10 documents a month, or upgrade to Pro for $5/month for unlimited documents, QuickBooks Online sync, tax exports and spend analytics.";
 
-const tiers = [
-  {
-    name: "Free",
-    priceMonthly: 0,
-    description: "For solo freelancers just getting started.",
-    features: [
-      "10 documents / month",
-      "AI data extraction",
-      "Basic dashboard",
-      "No integrations",
-    ],
-    cta: "Get Started",
-    highlight: false,
-  },
-  {
-    name: "Pro",
-    priceMonthly: 5,
-    description: "For power users who need automation and integrations.",
-    features: [
-      "Unlimited documents",
-      "QuickBooks Sync",
-      "Tax Categorization & Export",
-      "Priority Processing",
-    ],
-    cta: "Upgrade to Pro",
-    highlight: true,
-  },
-];
+export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: "/pricing" });
+
+const structuredData = jsonLdGraph(
+  webPageSchema({ path: "/pricing", name: `${TITLE} | Tallyhawk`, description: DESCRIPTION, breadcrumb: [{ name: TITLE, path: "/pricing" }] }),
+  breadcrumbSchema("/pricing", [{ name: TITLE, path: "/pricing" }]),
+  softwareApplicationSchema(),
+  faqPageSchema("/pricing", PRICING_FAQ)
+);
+
+function Cell({ value }: { value: ComparisonRow["free"] }) {
+  if (typeof value === "string") return <span className="whitespace-nowrap font-medium text-gray-900 dark:text-white">{value}</span>;
+  return value ? (
+    <>
+      <Check className="mx-auto h-4 w-4 text-emerald-500" aria-hidden="true" />
+      <span className="sr-only">Included</span>
+    </>
+  ) : (
+    <>
+      <X className="mx-auto h-4 w-4 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+      <span className="sr-only">Not included</span>
+    </>
+  );
+}
 
 export default function PricingPage() {
-  const pathname = usePathname();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-      const syncAuth = () => {
-        setIsLoggedIn(!!localStorage.getItem("token"));
-      };
-      syncAuth();
-      window.addEventListener("storage", syncAuth);
-      return () => window.removeEventListener("storage", syncAuth);
-    }, [pathname]);
-  const router = useRouter();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchPlan = async () => {
-      try {
-        // Hit the backend directly to get the real-time plan status from the DB
-        const usage = await getUsage();
-        setCurrentPlan(usage.plan);
-      } catch {
-        // Fallback to the JWT if the API fails (e.g. user is not logged in)
-        const tokenData = decodeToken();
-        if (tokenData?.plan) {
-          setCurrentPlan(tokenData.plan);
-        }
-      }
-    };
-    fetchPlan();
-  }, []);
-
-  const handleUpgrade = async () => {
-    if (!isLoggedIn) {
-      router.push("/login");
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const { url } = await createCheckoutSession();
-      window.location.href = url; // Redirect to Stripe Checkout
-    } catch (err) {
-      console.error(err);
-      alert("Failed to start checkout. Are you logged in?");
-      setIsLoading(false);
-    }
-  };
-
   return (
-    <div className={`min-h-screen font-sans antialiased transition-colors duration-300 ${
-      isDark ? "bg-black text-white" : "bg-white text-gray-900"
-    }`}>
+    <div className="min-h-screen bg-white text-gray-900 dark:bg-black dark:text-white">
+      <JsonLd data={structuredData} />
 
-      <section className="pt-32 pb-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-[1.05] mb-6">
-            Simple pricing,<br />
-            <span className={isDark ? "text-gray-500" : "text-gray-400"}>serious power.</span>
+      <section aria-labelledby="pricing-heading" className="relative px-6 pt-32 pb-24">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_at_top,black_15%,transparent_65%)]" />
+        <div className="relative mx-auto max-w-4xl text-center">
+          <h1 id="pricing-heading" className="mb-6 text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl">
+            Simple pricing,
+            <br />
+            <span className="text-gray-500">serious power.</span>
           </h1>
-
-          <p className={`text-lg max-w-xl mx-auto mb-16 leading-relaxed font-light ${
-            isDark ? "text-gray-400" : "text-gray-600"
-          }`}>
-            Start free. Upgrade when you need integrations, tax exports, and unlimited processing.
+          <p className="mx-auto mb-16 max-w-xl text-lg leading-relaxed text-gray-600 dark:text-gray-400">
+            Start free with 10 documents a month. Upgrade to Pro for $5/month when you need QuickBooks sync, tax exports and
+            unlimited processing.
           </p>
-
-          {/* Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto text-left">
-            {tiers.map((tier) => {
-              const isCurrentPlan = currentPlan === tier.name.toLowerCase();
-              const isProUser = currentPlan === "pro";
-
-              return (
-                <div
-                  key={tier.name}
-                  className={`rounded-3xl p-8 border flex flex-col ${
-                    tier.highlight
-                      ? isDark ? "bg-white/5 border-white/20" : "bg-gray-50 border-gray-900"
-                      : isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"
-                  }`}
-                >
-                  <h3 className="text-xl font-semibold tracking-tight mb-2 font-mono">{tier.name}</h3>
-                  <p className={`text-sm mb-6 ${isDark ? "text-gray-500" : "text-gray-500"}`}>
-                    {tier.description}
-                  </p>
-                  
-                  <div className="flex items-baseline gap-1 mb-8">
-                    <span className="text-5xl font-bold tracking-tighter">
-                      ${tier.priceMonthly}
-                    </span>
-                    <span className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-                      /mo
-                    </span>
-                  </div>
-
-                  <ul className="space-y-3 mb-8 grow">
-                    {tier.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm">
-                        <svg className={`w-4 h-4 mt-0.5 shrink-0 ${tier.highlight ? "text-emerald-400" : isDark ? "text-gray-500" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className={isDark ? "text-gray-300" : "text-gray-600"}>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <button
-                    onClick={tier.highlight ? handleUpgrade : () => router.push("/signup")}
-                    disabled={isLoading || isCurrentPlan || (tier.name === "Free" && isProUser)}
-                    className={`w-full py-3 rounded-full text-sm font-medium transition-all ${
-                      isCurrentPlan || (tier.name === "Free" && isProUser)
-                        ? isDark 
-                          ? "bg-white/10 text-gray-500 cursor-not-allowed" 
-                          : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                        : tier.highlight
-                          ? isDark 
-                            ? "bg-white text-black hover:bg-gray-200 disabled:opacity-50" 
-                            : "bg-black text-white hover:bg-gray-800 disabled:opacity-50"
-                          : isDark 
-                            ? "bg-white/10 text-white hover:bg-white/20" 
-                            : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                    }`}
-                  >
-                    {isLoading && tier.highlight ? "Redirecting..." : isCurrentPlan && isLoggedIn ? "Current Plan" : tier.cta}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
+          <PricingPlans />
+          <p className="mt-8 text-sm text-gray-500 dark:text-gray-400">Prices in USD. Cancel anytime — Pro stays active until the end of your billing period.</p>
         </div>
+      </section>
+
+      <section aria-labelledby="compare-heading" className="mx-auto max-w-3xl px-6 pb-24">
+        <SectionHeading id="compare-heading" eyebrow="Compare plans" title="Free vs. Pro, feature by feature" align="center" />
+        <div className="overflow-hidden rounded-3xl border border-gray-200 dark:border-white/10">
+          <table className="w-full text-sm">
+            <caption className="sr-only">Tallyhawk Free and Pro plan comparison</caption>
+            <thead className="bg-gray-50 dark:bg-white/5">
+              <tr>
+                <th scope="col" className="px-6 py-4 text-left font-semibold">Feature</th>
+                <th scope="col" className="w-28 px-6 py-4 text-center font-semibold">Free</th>
+                <th scope="col" className="w-28 px-6 py-4 text-center font-semibold">Pro</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-white/10">
+              {PLAN_COMPARISON.map((row) => (
+                <tr key={row.feature}>
+                  <th scope="row" className="px-6 py-4 text-left font-normal text-gray-700 dark:text-gray-300">{row.feature}</th>
+                  <td className="px-6 py-4 text-center"><Cell value={row.free} /></td>
+                  <td className="px-6 py-4 text-center"><Cell value={row.pro} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="faq" aria-labelledby="pricing-faq-heading" className="mx-auto max-w-3xl scroll-mt-24 px-6 pb-32">
+        <SectionHeading id="pricing-faq-heading" eyebrow="Billing FAQ" title="Questions about plans and billing" align="center" />
+        <FaqList items={PRICING_FAQ} />
       </section>
     </div>
   );

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
+import { privatePageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = privatePageMetadata({
   title: "Analytics",
-  description: "View your Tallyhawk analytics and insights.",
-  robots: { index: false, follow: false },
-};
+  description: "Spend trends, top vendors and category breakdowns for your processed documents.",
+});
 
 export default function AnalyticsLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;

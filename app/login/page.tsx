@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isTokenExpired, login } from "@/lib/api";
+import { validateEmail } from "@/lib/validation";
 import { useTheme } from "../providers/ThemeContext";
 import PasswordToggle from "@/components/ui/PasswordToggle";
 
@@ -22,16 +23,9 @@ export default function LoginPage() {
   const [lockSecondsRemaining, setLockSecondsRemaining] = useState(0);
   const [emailError, setEmailError] = useState("");
 
-  const validateEmail = (value: string): string => {
-    if (!value) return "Email is required.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return "Please enter a valid email address.";
-    return "";
-  };
-
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!isTokenExpired()) { router.push("/app"); return; }
-    setIsLoading(false);
+    if (!isTokenExpired()) router.push("/app");
   }, [router]);
 
   useEffect(() => {
@@ -80,8 +74,8 @@ export default function LoginPage() {
     }
 
     setError("");
-    setIsLoading(true);
 
+    // Validate before entering the loading state so an invalid email can't leave the form stuck on "Signing in..."
     const trimmedEmail = email.trim();
     const emailValidationError = validateEmail(trimmedEmail);
     if (emailValidationError) {
@@ -89,9 +83,11 @@ export default function LoginPage() {
       return;
     }
 
+    setIsLoading(true);
+
     try {
       await login(trimmedEmail, password);
-      // router.push("/app");
+      // Full reload so every provider (plan, settings) re-initializes from the new token
       window.location.reload();
     } catch (err: unknown) {
       const newAttempts = attempts + 1;
@@ -202,14 +198,14 @@ export default function LoginPage() {
 
           <div className="flex justify-start mt-2">
             <Link href="/forgot-password" className={`text-xs font-semibold transition-colors ${isDark ? "text-white hover:text-blue-500" : "text-black hover:text-blue-500"}`}>
-              reset password
+              Forgot password?
             </Link>
           </div>
         </form>
       </div>
 
       {/* Footer Link */}
-      <p className={`relative mt-8 text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+      <p className={`relative mt-8 text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
         Don{"'"}t have an account?{" "}
         <Link href="/signup" className={`font-semibold transition-colors ${isDark ? "text-white hover:text-gray-300" : "text-black hover:text-gray-700"}`}>
           Sign up

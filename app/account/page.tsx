@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getQuickBooksConnectUrl, getQuickBooksStatus } from "@/lib/api";
 import { logout, decodeToken, isTokenExpired, disconnectQuickBooks } from "@/lib/api";
 import { SUPPORTED_CURRENCIES, CurrencyCode } from "@/lib/currency";
+import { validatePassword } from "@/lib/validation";
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 function SectionCard({
@@ -30,7 +31,7 @@ function SectionCard({
         <h2 className={`text-base font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
           {title}
         </h2>
-        <p className={`text-sm mt-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+        <p className={`text-sm mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
           {description}
         </p>
       </div>
@@ -131,7 +132,7 @@ export default function AccountPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const searchParams = useSearchParams();
-  const { plan: currentPlan, currentPeriodEnd, lastRenewalDate } = usePlan();
+  const { plan: currentPlan, lastRenewalDate } = usePlan();
 
   // ── Auth guard ──
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -205,16 +206,9 @@ export default function AccountPage() {
     setPasswordError("");
     setPasswordSuccess("");
 
-    if (newPassword.length < 8) {
-      setPasswordError("New password must be at least 8 characters.");
-      return;
-    }
-    if (!/[A-Z]/.test(newPassword)) {
-      setPasswordError("New password must contain at least one uppercase letter.");
-      return;
-    }
-    if (!/[0-9]/.test(newPassword)) {
-      setPasswordError("New password must contain at least one number.");
+    const validationError = validatePassword(newPassword);
+    if (validationError) {
+      setPasswordError(validationError);
       return;
     }
     if (newPassword !== confirmNewPassword) {
@@ -309,7 +303,7 @@ export default function AccountPage() {
     try {
       const { url } = await getQuickBooksConnectUrl();
       window.location.href = url; 
-    } catch (err) {
+    } catch {
       alert("Unable to initiate QuickBooks connection.");
     } finally {
       setIsConnectingQb(false);
@@ -355,7 +349,7 @@ export default function AccountPage() {
       await disconnectQuickBooks();
       setQbConnected(false);
       setQbStatusMessage("QuickBooks disconnected successfully.");
-    } catch (err) {
+    } catch {
       setQbStatusMessage("Failed to disconnect QuickBooks.");
     } finally {
       setIsDisconnectingQb(false);
@@ -373,7 +367,7 @@ export default function AccountPage() {
           <h1 className={`text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
             Account
           </h1>
-          <p className={`text-sm mt-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+          <p className={`text-sm mt-2 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
             Manage your account settings.
           </p>
         </div>
@@ -415,7 +409,7 @@ export default function AccountPage() {
                   ? "bg-emerald-500/20" 
                   : isDark ? "bg-white/10" : "bg-gray-100"
               }`}>
-                <svg className={`w-5 h-5 ${currentPlan === "pro" ? "text-emerald-400" : isDark ? "text-gray-500" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-5 h-5 ${currentPlan === "pro" ? "text-emerald-400" : isDark ? "text-gray-400" : "text-gray-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                 </svg>
               </div>
@@ -423,7 +417,7 @@ export default function AccountPage() {
                 <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
                   {currentPlan === "pro" ? "Tallyhawk Pro" : "Free Tier"}
                 </p>
-                <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                   {currentPlan === "pro" ? "Unlimited documents & integrations" : "10 documents / month"}
                 </p>
               </div>
@@ -556,7 +550,7 @@ export default function AccountPage() {
               <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
                 qbConnected ? "bg-emerald-500/20" : isDark ? "bg-white/10" : "bg-gray-100"
               }`}>
-                <svg className={`w-5 h-5 ${qbConnected ? "text-emerald-400" : isDark ? "text-gray-500" : "text-gray-400"}`} viewBox="0 0 24 24" fill="currentColor">
+                <svg className={`w-5 h-5 ${qbConnected ? "text-emerald-400" : isDark ? "text-gray-400" : "text-gray-500"}`} viewBox="0 0 24 24" fill="currentColor">
                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
                 </svg>
               </div>
@@ -564,7 +558,7 @@ export default function AccountPage() {
                 <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
                   QuickBooks Online
                 </p>
-                <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                   {qbConnected ? "Connected" : "Not connected"}
                 </p>
               </div>
@@ -689,7 +683,7 @@ export default function AccountPage() {
         <div className="rounded-2xl border border-red-500/30 p-8">
           <div className="mb-6">
             <h2 className="text-base font-semibold text-red-500">Danger Zone</h2>
-            <p className={`text-sm mt-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+            <p className={`text-sm mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
               Permanently delete your account and all associated documents. This cannot be undone.
             </p>
           </div>

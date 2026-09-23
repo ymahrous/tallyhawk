@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getSettings, updateSettings, UserSettings } from "@/lib/api";
+import { getSettings, updateSettings } from "@/lib/api";
 import { CurrencyCode } from "@/lib/currency";
 
 interface SettingsData {
@@ -51,6 +51,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   };
 
   const updateBaseCurrency = async (currency: CurrencyCode) => {
+    // Capture before the optimistic write — reading localStorage back on failure would return the new value.
+    const previous = baseCurrency;
     setBaseCurrency(currency);
     localStorage.setItem("tallyhawk_base_currency", currency);
     try {
@@ -62,11 +64,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         }));
       }
     } catch (error) {
-      // Revert on error
-      const stored = localStorage.getItem("tallyhawk_base_currency");
-      const fallback = stored ? (stored as CurrencyCode) : "USD";
-      setBaseCurrency(fallback);
-      localStorage.setItem("tallyhawk_base_currency", fallback);
+      setBaseCurrency(previous);
+      localStorage.setItem("tallyhawk_base_currency", previous);
       throw error;
     }
   };
@@ -109,11 +108,9 @@ export function useCurrencyChange() {
   const [, forceUpdate] = useState({});
 
   useEffect(() => {
-    const handleChange = (e: CustomEvent) => {
-      forceUpdate({});
-    };
-    window.addEventListener("tallyhawk:currency-changed", handleChange as EventListener);
-    return () => window.removeEventListener("tallyhawk:currency-changed", handleChange as EventListener);
+    const handleChange = () => forceUpdate({});
+    window.addEventListener("tallyhawk:currency-changed", handleChange);
+    return () => window.removeEventListener("tallyhawk:currency-changed", handleChange);
   }, []);
 
   return baseCurrency;

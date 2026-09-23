@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   uploadDocument, getDocuments, getExtraction, deleteDocument,
@@ -75,8 +73,10 @@ export default function DashboardPage() {
 
   // ── Polling ──
   const backoffRef = useRef(3000);
-  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
+  // Fetches now and re-arms the timer. Needed after an upload: an idle list polls every 30s, and the
+  // already-scheduled tick would otherwise leave a new document on "Processing" for up to 30s.
+  const pollNowRef = useRef<() => Promise<void>>(async () => {});
 
   const fetchDocs = useCallback(async () => {
     if (controllerRef.current) controllerRef.current.abort();
@@ -94,9 +94,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    const schedule = () => { fetchDocs().then(() => { intervalRef.current = setTimeout(schedule, backoffRef.current); }); };
-    schedule();
-    return () => { if (intervalRef.current) clearTimeout(intervalRef.current); if (controllerRef.current) controllerRef.current.abort(); };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    // Each tick clears any pending timer before arming the next, so overlapping ticks
+    // (a manual poll during an in-flight one) still leave exactly one loop running.
+    const tick = async () => {
+      await fetchDocs();
+      if (stopped) return;
+      clearTimeout(timer);
+      timer = setTimeout(tick, backoffRef.current);
+    };
+    pollNowRef.current = () => { clearTimeout(timer); return tick(); };
+    tick();
+    return () => { stopped = true; clearTimeout(timer); if (controllerRef.current) controllerRef.current.abort(); };
   }, [isAuthenticated, fetchDocs]);
 
   useEffect(() => {
@@ -135,7 +145,7 @@ export default function DashboardPage() {
     setLimitError(false); setUploadError("");
     setIsUploading(true); setUploadProgress(0);
     const progressInterval = setInterval(() => setUploadProgress((prev) => (prev < 80 ? prev + 10 : prev)), 200);
-    try { await uploadDocument(file); setUploadProgress(100); await fetchDocs(); } 
+    try { await uploadDocument(file); setUploadProgress(100); await pollNowRef.current(); }
     catch (err: unknown) { const msg = err instanceof Error ? err.message : ""; if (msg === "limit_exceeded") setLimitError(true); else setUploadError("Upload failed. Please try again."); } 
     finally { clearInterval(progressInterval); setTimeout(() => { setIsUploading(false); setUploadProgress(0); }, 600); }
   };
@@ -192,7 +202,7 @@ export default function DashboardPage() {
               <h1 className={`text-2xl md:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
                 Documents
               </h1>
-              <p className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+              <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                 Upload invoices to extract structured data via AI.
               </p>
             </div>
@@ -228,15 +238,15 @@ export default function DashboardPage() {
         {stats && (
           <div className="grid grid-cols-3 gap-3 sm:gap-4">
             <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
-              <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-500" : "text-gray-400"}`}>Processed</p>
+              <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-400" : "text-gray-500"}`}>Processed</p>
               <p className={`text-lg sm:text-xl font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>{stats.processed}</p>
             </div>
             <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
-              <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-500" : "text-gray-400"}`}>Synced</p>
+              <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-400" : "text-gray-500"}`}>Synced</p>
               <p className="text-lg sm:text-xl font-semibold text-emerald-400">{stats.synced}</p>
             </div>
             <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
-              <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+              <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                 This Month ({baseCurrency})
               </p>
               <p className={`text-lg sm:text-xl font-semibold wrap-break-word ${isDark ? "text-white" : "text-gray-900"}`}>
@@ -266,7 +276,7 @@ export default function DashboardPage() {
 
         {activeDocs.length > 0 && (
           <div className="space-y-4">
-            <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+            <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? "text-gray-400" : "text-gray-500"}`}>
               Processing ({activeDocs.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -284,7 +294,7 @@ export default function DashboardPage() {
 
         {failedDocs.length > 0 && (
           <div className="space-y-4">
-            <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+            <h2 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? "text-gray-400" : "text-gray-500"}`}>
               Failed ({failedDocs.length})
             </h2>
             <div className={`rounded-2xl border overflow-hidden divide-y ${isDark ? "bg-white/5 border-red-500/20 divide-white/10" : "bg-white border-red-200 divide-gray-100"}`}>
@@ -326,13 +336,13 @@ export default function DashboardPage() {
             {completedDocs.length === 0 ? (
               <div className="p-8 sm:p-16 flex flex-col items-center justify-center gap-4">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isDark ? "bg-white/5" : "bg-gray-100"}`}>
-                  <svg className={`w-7 h-7 ${isDark ? "text-gray-600" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-7 h-7 ${isDark ? "text-gray-400" : "text-gray-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
                 </div>
                 <div className="text-center space-y-1">
                   <p className={`text-sm font-medium ${isDark ? "text-gray-400" : "text-gray-600"}`}>No documents yet</p>
-                  <p className={`text-xs ${isDark ? "text-gray-600" : "text-gray-400"}`}>Upload an invoice or receipt above to get started.</p>
+                  <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>Upload an invoice or receipt above to get started.</p>
                 </div>
               </div>
             ) : (
@@ -353,7 +363,7 @@ export default function DashboardPage() {
 
                 {totalPages > 1 && (
                   <div className={`px-4 sm:px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 ${isDark ? "border-white/10" : "border-gray-200"}`}>
-                    <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>Page {page} of {totalPages}</p>
+                    <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>Page {page} of {totalPages}</p>
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => setPage((p) => Math.max(1, p - 1))} 

@@ -152,3 +152,59 @@ describe("DocumentCard flags", () => {
     expect(screen.getByText("Anomaly")).toBeInTheDocument();
   });
 });
+
+describe("DocumentCard dates, previews and actions", () => {
+  it("labels today's and yesterday's documents relatively", () => {
+    const today = new Date();
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    render(
+      <DocumentCard
+        doc={{ ...doc, created_at: today.toISOString() }}
+        ext={baseExtraction({ extracted_data: { vendor: "AMZN", total_amount: "1", date: yesterday.toISOString() } })}
+        qbConnected={false}
+        isDeleting={false}
+        onCategoryUpdate={noop}
+        onDelete={noop}
+      />
+    );
+    expect(screen.getByText("Today")).toBeInTheDocument();
+    expect(screen.getByText("Yesterday")).toBeInTheDocument();
+  });
+
+  it("formats older dates and guards against missing or invalid ones", () => {
+    render(
+      <DocumentCard
+        doc={{ ...doc, created_at: "not-a-date" }}
+        ext={baseExtraction({ extracted_data: { vendor: "AMZN", total_amount: "1", date: "" } })}
+        qbConnected={false}
+        isDeleting={false}
+        onCategoryUpdate={noop}
+        onDelete={noop}
+      />
+    );
+    expect(screen.getByText("Invalid Date")).toBeInTheDocument();
+    expect(screen.getByText("N/A")).toBeInTheDocument();
+
+    render(<DocumentCard doc={{ ...doc, created_at: "2025-03-04T12:00:00Z" }} ext={undefined} qbConnected={false} isDeleting={false} onCategoryUpdate={noop} onDelete={noop} />);
+    expect(screen.getByText("March 4, 2025")).toBeInTheDocument();
+  });
+
+  it("previews image documents and falls back to an icon for PDFs", () => {
+    const { container } = render(
+      <DocumentCard doc={{ ...doc, filename: "receipt.jpg", s3_url: "https://bucket.test/receipt.jpg" }} ext={undefined} qbConnected={false} isDeleting={false} onCategoryUpdate={noop} onDelete={noop} />
+    );
+    expect(screen.getByRole("img", { name: "receipt.jpg" })).toHaveAttribute("src", "https://bucket.test/receipt.jpg");
+    expect(container.querySelector("[data-testid='category']")).toBeNull();
+  });
+
+  it("deletes the document and disables the button while deleting", async () => {
+    const onDelete = vi.fn();
+    const { rerender } = render(<DocumentCard doc={doc} ext={baseExtraction()} qbConnected={false} isDeleting={false} onCategoryUpdate={noop} onDelete={onDelete} />);
+
+    screen.getByRole("button", { name: "Delete" }).click();
+    expect(onDelete).toHaveBeenCalledWith("doc-1");
+
+    rerender(<DocumentCard doc={doc} ext={baseExtraction()} qbConnected={false} isDeleting onCategoryUpdate={noop} onDelete={onDelete} />);
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+  });
+});

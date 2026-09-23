@@ -63,7 +63,7 @@ The app will be running at `http://localhost:3000`. You will also need a running
 2. If no issue exists for what you want to work on, open one first and wait for confirmation before starting.
 3. Fork the repo and create your branch from `main`.
 4. Make your changes, following the code style guidelines below.
-5. Test your changes locally — run `npm run lint`, `npm run typecheck`, and `npm test` before opening a PR. Add or update tests for behavior you change.
+5. Test your changes locally — run `npm run lint`, `npm run typecheck`, and `npm test` before opening a PR (plus `npm run test:e2e` for user-facing changes). Add or update tests for behavior you change.
 6. Open a pull request against `main`.
 
 ---

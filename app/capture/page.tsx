@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/app/providers/ThemeContext";
-import { uploadDocument } from "@/lib/api";
+import { isTokenExpired, uploadDocument } from "@/lib/api";
+import { validateUploadFile } from "@/lib/uploads";
 
 export default function CapturePage() {
   const router = useRouter();
@@ -15,9 +16,21 @@ export default function CapturePage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  // The installed PWA opens here directly, so it needs the same guard as the dashboard.
+  useEffect(() => {
+    if (isTokenExpired()) router.push("/login");
+  }, [router]);
+
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const validationError = validateUploadFile(file);
+    if (validationError) {
+      setError(validationError);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     setIsUploading(true);
     setError("");
@@ -63,7 +76,7 @@ export default function CapturePage() {
       <div className="flex-1 flex flex-col items-center justify-center p-8 gap-8">
         
         {success ? (
-          <div className="flex flex-col items-center gap-4 animate-pulse">
+          <div role="status" className="flex flex-col items-center gap-4 animate-pulse">
             <div className="w-20 h-20 rounded-3xl bg-emerald-500/20 flex items-center justify-center">
               <svg className="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -78,7 +91,7 @@ export default function CapturePage() {
                 ? "bg-white/5 border-white/20" 
                 : "bg-black/5 border-black/20"
             }`}>
-              <svg className={`w-14 h-14 ${isDark ? "text-gray-500" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-14 h-14 ${isDark ? "text-gray-400" : "text-gray-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
               </svg>
@@ -86,7 +99,7 @@ export default function CapturePage() {
 
             <div className="text-center">
               <h2 className="text-2xl font-semibold mb-2">Snap a Receipt</h2>
-              <p className={`text-sm max-w-xs mx-auto ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+              <p className={`text-sm max-w-xs mx-auto ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                 Take a photo or select from gallery. We'll process it instantly.
               </p>
             </div>
@@ -94,7 +107,7 @@ export default function CapturePage() {
         )}
 
         {error && (
-          <div className="text-sm text-red-400 bg-red-500/10 px-4 py-3 rounded-xl max-w-sm text-center">
+          <div role="alert" className="text-sm text-red-400 bg-red-500/10 px-4 py-3 rounded-xl max-w-sm text-center">
             {error}
           </div>
         )}

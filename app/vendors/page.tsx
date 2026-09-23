@@ -139,7 +139,7 @@ export default function VendorsPage() {
         </div>
 
         {vendors.length === 0 ? (
-          <p className={`text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>No vendors found. They will appear here once you process documents.</p>
+          <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>No vendors found. They will appear here once you process documents.</p>
         ) : (
           <div className="space-y-4">
             {vendors.map((vendor) => (
@@ -161,7 +161,7 @@ export default function VendorsPage() {
                   >
                     {vendor.canonical_name}
                   </button>
-                  <div className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                  <div className={`text-xs mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                     Aliases: {vendor.aliases.length > 0 ? vendor.aliases.join(", ") : "None"}
                   </div>
                 </div>

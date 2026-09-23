@@ -71,7 +71,7 @@ export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCate
               onDragStart={disableActions}
             />
           ) : (
-            <svg className={`w-7 h-7 sm:w-8 sm:h-8 ${isDark ? "text-gray-600" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-7 h-7 sm:w-8 sm:h-8 ${isDark ? "text-gray-400" : "text-gray-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
           )}
@@ -83,7 +83,7 @@ export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCate
             <p className={`text-sm font-medium truncate ${isDark ? "text-gray-200" : "text-gray-900"}`}>{doc.filename}</p>
             <WarningBadge flags={doc.flags} />
           </div>
-          <p className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+          <p className={`text-xs mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
             {formatThisDate(doc.created_at)}
           </p>
         </div>
@@ -111,13 +111,13 @@ export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCate
           
           {/* Vendor (Uses the clean relationship name) */}
           <div className="col-span-2">
-            <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Vendor</p>
+            <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Vendor</p>
             <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>{displayName}</p>
           </div>
 
           {/* Amount */}
           <div>
-            <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+            <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
               Amount
             </p>
             {ext && ext.original_currency && ext.original_amount !== undefined ? (
@@ -134,7 +134,7 @@ export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCate
                       : formatCurrency(ext.original_amount, ext.original_currency as CurrencyCode)}
                   </p>
                   {ext.exchange_rate && ext.converted_currency !== ext.original_currency && (
-                    <p className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                    <p className={`text-xs mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                       Rate: 1 {ext.original_currency} = {ext.exchange_rate.toFixed(4)} {ext.converted_currency}
                     </p>
                   )}
@@ -158,7 +158,7 @@ export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCate
 
           {/* Date */}
           <div>
-            <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Document Date</p>
+            <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Document Date</p>
             <p className={`text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}>
               {formatThisDate(ext.extracted_data.date)}
             </p>

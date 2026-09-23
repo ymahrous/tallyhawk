@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { useTheme } from "@/app/providers/ThemeContext";
-
-const MAX_FILE_SIZE_MB = 10;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const ACCEPTED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
-const ACCEPTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
+import { ACCEPTED_MIME_TYPES, MAX_UPLOAD_MB, validateUploadFile } from "@/lib/uploads";
 
 interface UploadZoneProps {
   isUploading: boolean;
@@ -12,7 +8,7 @@ interface UploadZoneProps {
   dragActive: boolean;
   onUpload: (file: File) => void;
   setDragActive: (active: boolean) => void;
-  onValidationError: (message: string) => void; // NEW PROP
+  onValidationError: (message: string) => void;
 }
 
 export default function UploadZone({ isUploading, uploadProgress, dragActive, onUpload, setDragActive, onValidationError }: UploadZoneProps) {
@@ -20,29 +16,8 @@ export default function UploadZone({ isUploading, uploadProgress, dragActive, on
   const isDark = theme === "dark";
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const validateFile = (file: File): string | null => {
-    // 1. Check Extension
-    const fileName = file.name.toLowerCase();
-    const hasValidExtension = ACCEPTED_EXTENSIONS.some(ext => fileName.endsWith(ext));
-    if (!hasValidExtension) {
-      return `Unsupported file extension. Please upload ${ACCEPTED_EXTENSIONS.join(", ")}.`;
-    }
-
-    // 2. Check MIME Type
-    if (file.type && !ACCEPTED_TYPES.includes(file.type)) {
-      return `Unsupported file type: ${file.type}. Accepted: PDF, JPG, PNG.`;
-    }
-
-    // 3. Check Size
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      return `File too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is ${MAX_FILE_SIZE_MB}MB.`;
-    }
-
-    return null; // Valid file
-  };
-
   const processFile = (file: File) => {
-    const error = validateFile(file);
+    const error = validateUploadFile(file);
     if (error) {
       setSelectedFile(null);
       onValidationError(error); // Send error to parent
@@ -94,22 +69,21 @@ export default function UploadZone({ isUploading, uploadProgress, dragActive, on
           <p className={`font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}>
             Drop files here or <span className={`underline ${!isDark ? "text-black hover:text-black/50" : "text-white hover:text-white/50"}`}>browse</span>
           </p>
-          <p className={`text-sm ${isDark ? "text-gray-600" : "text-gray-400"}`}>
-            PDF, JPG, PNG up to {MAX_FILE_SIZE_MB}MB
+          <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+            PDF, JPG, PNG up to {MAX_UPLOAD_MB}MB
           </p>
           {selectedFile && !isUploading && (
-            <p className={`text-xs mt-1 truncate max-w-50 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+            <p className={`text-xs mt-1 truncate max-w-50 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
               Selected: {selectedFile.name}
             </p>
           )}
         </div>
       </label>
-      {/* UPDATED: Use MIME types in accept attribute for stricter browser filtering */}
       <input 
         type="file" 
         id="file-upload" 
         className="hidden" 
-        accept="application/pdf,image/jpeg,image/png" 
+        accept={ACCEPTED_MIME_TYPES.join(",")} 
         onChange={handleFileChange} 
       />
 
@@ -118,7 +92,7 @@ export default function UploadZone({ isUploading, uploadProgress, dragActive, on
           <div className={`h-1 w-full rounded-full overflow-hidden ${isDark ? "bg-white/10" : "bg-gray-200"}`}>
             <div className="h-full bg-indigo-500 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
           </div>
-          <p className={`text-xs mt-2 text-center ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+          <p className={`text-xs mt-2 text-center ${isDark ? "text-gray-400" : "text-gray-500"}`}>
             Uploading... {uploadProgress}%
           </p>
         </div>

@@ -16,7 +16,7 @@ export default function PrivacyPolicy() {
         }`}>
           Privacy Policy
         </h1>
-        <p className={`text-sm mb-12 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+        <p className={`text-sm mb-12 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
           Last updated: July 2026
         </p>
 

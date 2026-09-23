@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
+import { privatePageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = privatePageMetadata({
   title: "Forgot Password",
-  description: "Reset your Tallyhawk password if you've forgotten it.",
-  alternates: { canonical: "/forgot-password" },
-  robots: { index: true, follow: true },
-};
+  description: "Request a link to reset your Tallyhawk password.",
+});
 
 export default function ForgotPasswordLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;

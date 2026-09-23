@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
+import JsonLd from "@/components/seo/JsonLd";
+import { pageMetadata } from "@/lib/seo";
+import { simplePageGraph } from "@/lib/structured-data";
 
-export const metadata: Metadata = {
-  title: "Accessibility",
-  description: "Tallyhawk's accessibility commitment and WCAG 2.1 AA conformance status.",
-  alternates: { canonical: "/accessibility" },
-  openGraph: {
-    title: "Tallyhawk Accessibility Statement",
-    description: "Tallyhawk's accessibility commitment and WCAG 2.1 AA conformance status.",
-  },
-  robots: { index: true, follow: true },
-};
+const TITLE = "Accessibility Statement";
+const DESCRIPTION =
+  "Tallyhawk's accessibility statement: our WCAG 2.1 AA conformance target, the measures we take, known limitations and how to report a barrier.";
+
+export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: "/accessibility" });
 
 export default function AccessibilityLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      <JsonLd data={simplePageGraph({ path: "/accessibility", name: TITLE, description: DESCRIPTION })} />
+      {children}
+    </>
+  );
 }

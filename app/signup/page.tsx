@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { isTokenExpired, signup } from "@/lib/api";
 import { useTheme } from "@/app/providers/ThemeContext";
 import PasswordToggle from "@/components/ui/PasswordToggle";
+import { validateEmail, validatePassword } from "@/lib/validation";
+import PasswordStrengthMeter from "@/components/ui/PasswordStrengthMeter";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -24,45 +26,11 @@ export default function SignupPage() {
   const [isLocked, setIsLocked] = useState(false);
   const [lockSecondsRemaining, setLockSecondsRemaining] = useState(0);
   const [emailError, setEmailError] = useState("");
-  const [passwordStrength, setPasswordStrength] = useState<{
-    score: number;
-    label: string;
-    color: string;
-  }>({ score: 0, label: "", color: "" });
 
   useEffect(() => {
-      if (typeof window === "undefined") return;
-      if (!isTokenExpired()) { router.push("/app"); return; }
-      setIsLoading(false);
-    }, [router]);
+    if (!isTokenExpired()) router.push("/app");
+  }, [router]);
 
-  const validateEmail = (value: string): string => {
-    if (!value) return "Email is required.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return "Please enter a valid email address.";
-    return "";
-  };
-
-  const getPasswordStrength = (value: string): {
-    score: number;
-    label: string;
-    color: string;
-  } => {
-    if (!value) return { score: 0, label: "", color: "" };
-
-    let score = 0;
-    if (value.length >= 8) score++;
-    if (value.length >= 12) score++;
-    if (/[A-Z]/.test(value)) score++;
-    if (/[0-9]/.test(value)) score++;
-    if (/[^A-Za-z0-9]/.test(value)) score++;
-
-    if (score <= 1) return { score, label: "Very weak",  color: "bg-red-500" };
-    if (score === 2) return { score, label: "Weak",       color: "bg-orange-500" };
-    if (score === 3) return { score, label: "Fair",       color: "bg-yellow-500" };
-    if (score === 4) return { score, label: "Strong",     color: "bg-blue-500" };
-    return              { score,     label: "Very strong", color: "bg-emerald-500" };
-  };
-  
   useEffect(() => {
     if (lockedUntil === null) {
       setIsLocked(false);
@@ -89,13 +57,6 @@ export default function SignupPage() {
   
     return () => clearInterval(ticker);
   }, [lockedUntil]);
-
-  const validatePassword = (value: string): string => {
-    if (value.length < 8) return "Password must be at least 8 characters.";
-    if (!/[A-Z]/.test(value)) return "Password must contain at least one uppercase letter.";
-    if (!/[0-9]/.test(value)) return "Password must contain at least one number.";
-    return "";
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,6 +101,7 @@ export default function SignupPage() {
       } else {
         setError(err instanceof Error ? err.message : "Signup failed");
       }
+      setIsLoading(false);
     }
   };
 
@@ -198,7 +160,6 @@ export default function SignupPage() {
               onChange={(e) => {
                 setPassword(e.target.value);
                 setPasswordError(validatePassword(e.target.value));
-                setPasswordStrength(getPasswordStrength(e.target.value));
               }}
               className={`w-full bg-transparent text-sm pb-3 border-b-2 outline-none transition-colors placeholder:text-opacity-40 pr-10 ${
                 isDark
@@ -215,34 +176,7 @@ export default function SignupPage() {
             />
           </div>
 
-          {/* Strength Bar */}
-          {password && (
-            <div className="mt-3 space-y-1.5">
-              <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map((segment) => (
-                  <div
-                    key={segment}
-                    className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                      segment <= passwordStrength.score
-                        ? passwordStrength.color
-                        : isDark
-                        ? "bg-white/10"
-                        : "bg-gray-200"
-                    }`}
-                  />
-                ))}
-              </div>
-              <p className={`text-xs transition-colors ${
-                passwordStrength.score <= 1 ? "text-red-500" :
-                passwordStrength.score === 2 ? "text-orange-500" :
-                passwordStrength.score === 3 ? "text-yellow-500" :
-                passwordStrength.score === 4 ? "text-blue-500" :
-                "text-emerald-500"
-              }`}>
-                {passwordStrength.label}
-              </p>
-            </div>
-          )}
+          <PasswordStrengthMeter password={password} isDark={isDark} />
 
           {/* Password validation error */}
           {passwordError && (
@@ -285,11 +219,11 @@ export default function SignupPage() {
               isDark ? "text-gray-400" : "text-gray-500"
             }`}>
               I agree to the{" "}
-              <a href="/terms" target="_blank" className={`font-medium transition-colors ${isDark ? "text-white hover:text-gray-300" : "text-black hover:text-gray-700"}`}>
+              <a href="/terms" target="_blank" rel="noopener" className={`font-medium transition-colors ${isDark ? "text-white hover:text-gray-300" : "text-black hover:text-gray-700"}`}>
                 Terms of Service
               </a>{" "}
               and{" "}
-              <a href="/privacy" target="_blank" className={`font-medium transition-colors ${isDark ? "text-white hover:text-gray-300" : "text-black hover:text-gray-700"}`}>
+              <a href="/privacy" target="_blank" rel="noopener" className={`font-medium transition-colors ${isDark ? "text-white hover:text-gray-300" : "text-black hover:text-gray-700"}`}>
                 Privacy Policy
               </a>
             </label>
@@ -314,7 +248,7 @@ export default function SignupPage() {
       </div>
 
       {/* Footer Link */}
-      <p className={`relative mt-8 text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+      <p className={`relative mt-8 text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
         Already have an account?{" "}
         <Link href="/login" className={`font-semibold transition-colors ${isDark ? "text-white hover:text-gray-300" : "text-black hover:text-gray-700"}`}>
           Login

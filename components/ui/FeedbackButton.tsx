@@ -36,11 +36,12 @@ export default function FeedbackButton() {
     setIsSending(true);
 
     try {
-      await fetch(`${API_BASE}/feedback/`, {
+      const res = await fetch(`${API_BASE}/feedback/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: activeType, message: sanitizedText }),
       });
+      if (!res.ok) throw new Error(`Feedback request failed with ${res.status}`);
 
       setIsSent(true);
       setTimeout(() => {
@@ -68,6 +69,10 @@ export default function FeedbackButton() {
       {/* Floating Bottom-Right Button */}
       <button
         onClick={() => setIsOpen(true)}
+        aria-label="Send feedback"
+        aria-expanded={isOpen}
+        aria-controls="feedback-panel"
+        tabIndex={isOpen ? -1 : 0}
         className={`p-3.5 rounded-full shadow-lg transition-all duration-200 hover:scale-110 ${
           isDark
             ? "bg-white text-black hover:bg-gray-200"
@@ -81,6 +86,11 @@ export default function FeedbackButton() {
 
       {/* Modal Box - Responsive positioning for mobile & desktop */}
       <div 
+        id="feedback-panel"
+        role="dialog"
+        aria-label="Send feedback"
+        aria-hidden={!isOpen}
+        inert={!isOpen}
         className={`absolute bottom-0 right-0 w-[calc(100vw-3rem)] sm:w-96 transition-all duration-200 origin-bottom-right ${
           isOpen ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"
         }`}
@@ -99,6 +109,7 @@ export default function FeedbackButton() {
               <button
                 key={type}
                 onClick={() => setActiveType(type)}
+                aria-pressed={activeType === type}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
                   activeType === type
                     ? isDark
@@ -116,6 +127,7 @@ export default function FeedbackButton() {
 
           {/* Text Input */}
           <textarea
+            aria-label="Feedback message"
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={

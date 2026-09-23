@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // E2E runs build into a separate directory (NEXT_DIST_DIR=.next-e2e, set by playwright.config.ts)
+  // so a build pointed at the mock API never overwrites the real `.next` output.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   images: {
     remotePatterns: [
       {

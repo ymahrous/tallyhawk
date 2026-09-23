@@ -1,8 +1,9 @@
 import "./globals.css";
 import { Suspense } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
+import JsonLd from "@/components/seo/JsonLd";
 import { PlanProvider } from "./providers/PlanContext";
 import AnalyticsGate from "@/components/ui/AnalyticsGate";
 import { SettingsProvider } from "./providers/SettingsContext";
@@ -11,88 +12,78 @@ import FeedbackButton from "@/components/ui/FeedbackButton";
 import { ThemeProvider, themeScript } from "./providers/ThemeContext";
 import CookieConsentBanner from "@/components/ui/CookieConsentBanner";
 import { CookieConsentProvider } from "./providers/CookieConsentContext";
+import { INDEXABLE_ROBOTS } from "@/lib/seo";
+import { jsonLdGraph, organizationSchema, websiteSchema } from "@/lib/structured-data";
+import { SITE_DESCRIPTION, SITE_LOCALE, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", display: "swap" });
 
-const SITE_URL = "https://tallyhawk.vercel.app";
-const SITE_DESCRIPTION =
-  "Tallyhawk turns invoices and receipts into structured, tax-ready data with AI — then syncs it straight to QuickBooks Online. Built for freelancers and small business owners.";
-
+// Site-wide defaults. There is deliberately no `alternates.canonical` here: it would be inherited
+// by every route that doesn't set its own and point them all at the home page. Indexable pages set
+// their canonical through pageMetadata() in lib/seo.ts.
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: {
-    default: "Tallyhawk | AI Invoice & Receipt Processing for Freelancers",
-    template: "%s | Tallyhawk",
-  },
+  title: { default: SITE_TITLE, template: `%s | ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: "finance",
   keywords: [
+    "AI receipt scanner",
     "invoice processing software",
-    "receipt scanning app",
-    "AI expense tracking",
-    "QuickBooks sync",
-    "tax categorization",
-    "freelancer bookkeeping",
-    "document extraction",
-    "OCR invoices",
-    "small business accounting",
+    "receipt to QuickBooks",
+    "QuickBooks Online expense sync",
+    "AI bookkeeping for freelancers",
+    "expense categorization for taxes",
+    "invoice data extraction",
+    "multi-currency expense tracking",
   ],
-  alternates: { canonical: "/" },
+  formatDetection: { telephone: false, address: false, email: false },
+  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "black-translucent" },
   openGraph: {
     type: "website",
-    locale: "en_US",
-    url: SITE_URL,
-    siteName: "Tallyhawk",
-    title: "Tallyhawk | AI Invoice & Receipt Processing for Freelancers",
+    locale: SITE_LOCALE,
+    siteName: SITE_NAME,
+    url: "/",
+    title: SITE_TITLE,
     description: SITE_DESCRIPTION,
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "Tallyhawk | AI Invoice & Receipt Processing for Freelancers",
-    description: SITE_DESCRIPTION,
+  twitter: { card: "summary_large_image", title: SITE_TITLE, description: SITE_DESCRIPTION },
+  robots: INDEXABLE_ROBOTS,
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
+    other: process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION }
+      : undefined,
   },
-  robots: { index: true, follow: true },
-  manifest: "/manifest.json",
 };
 
-const structuredData = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Organization",
-      "@id": `${SITE_URL}/#organization`,
-      name: "Tallyhawk",
-      url: SITE_URL,
-      logo: `${SITE_URL}/logo.svg`,
-    },
-    {
-      "@type": "SoftwareApplication",
-      "@id": `${SITE_URL}/#software`,
-      name: "Tallyhawk",
-      url: SITE_URL,
-      description: SITE_DESCRIPTION,
-      applicationCategory: "FinanceApplication",
-      operatingSystem: "Web",
-      offers: [
-        { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD" },
-        { "@type": "Offer", name: "Pro", price: "5", priceCurrency: "USD" },
-      ],
-    },
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
 };
-
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        />
+        <JsonLd data={jsonLdGraph(organizationSchema(), websiteSchema())} />
       </head>
-      <body className={`${inter.className} ${jetbrainsMono.className} antialiased`}>
+      <body className="font-sans antialiased">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-100 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-black focus:shadow-lg"
+        >
+          Skip to content
+        </a>
         <CookieConsentProvider>
           <ThemeProvider>
             <PlanProvider>
@@ -103,7 +94,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                   </Suspense>
                 </header>
                 <div className="min-h-screen flex flex-col">
-                  <main className="grow">
+                  <main id="main-content" className="grow">
                     <Suspense fallback={null}>
                       {children}
                     </Suspense>

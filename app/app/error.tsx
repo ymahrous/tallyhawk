@@ -23,11 +23,11 @@ export default function Error({
     <div className={`min-h-screen flex flex-col items-center justify-center px-6 ${
       isDark ? "bg-black text-white" : "bg-gray-50 text-gray-900"
     }`}>
-      <p className={`text-sm font-mono mb-4 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+      <p className={`text-sm font-mono mb-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
         500
       </p>
       <h1 className="text-3xl font-bold tracking-tight mb-2">Something went wrong</h1>
-      <p className={`text-sm mb-8 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+      <p className={`text-sm mb-8 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
         {error.message || "An unexpected error occurred. Please try again."}
       </p>
       <div className="flex items-center gap-4">

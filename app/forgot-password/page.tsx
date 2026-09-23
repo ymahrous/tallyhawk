@@ -1,14 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-// import { useRouter } from "next/navigation";
 import { requestPasswordReset } from "@/lib/api";
+import { validateEmail } from "@/lib/validation";
 import { useTheme } from "@/app/providers/ThemeContext";
 
 export default function ForgotPasswordPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  // const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -16,27 +15,22 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [emailError, setEmailError] = useState("");
 
-  const validateEmail = (value: string): string => {
-    if (!value) return "Email is required.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return "Please enter a valid email address.";
-    return "";
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
 
-    const emailValidationError = validateEmail(email);
+    const emailValidationError = validateEmail(email.trim());
     if (emailValidationError) {
       setEmailError(emailValidationError);
       return;
     }
 
+    setIsLoading(true);
+
     try {
       await requestPasswordReset(email.trim());
       setMessage("If an account with that email exists, a reset link has been sent to your inbox. Please check your email (and spam folder).");
-    } catch (err) {
+    } catch {
       setError("Unable to request reset. Please try again later.");
     } finally {
       setIsLoading(false);
@@ -95,7 +89,7 @@ export default function ForgotPasswordPage() {
         </form>
       </div>
 
-      <p className={`relative mt-8 text-sm ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+      <p className={`relative mt-8 text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
         Remember your password?{" "}
         <Link href="/login" className={`font-semibold transition-colors ${isDark ? "text-white hover:text-gray-300" : "text-black hover:text-gray-700"}`}>
           Login

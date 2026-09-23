@@ -92,7 +92,7 @@ export default function AnalyticsPage() {
     return (
       <div className={`min-h-screen flex flex-col items-center justify-center px-6 ${isDark ? "bg-black" : "bg-gray-50"}`}>
         <div className={`max-w-md p-8 text-center rounded-2xl border ${isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-200"}`}>
-          <h2 className={`text-xl font-bold mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>Upgrade to Pro</h2>
+          <h1 className={`text-xl font-bold mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>Upgrade to Pro</h1>
           <p className={`text-sm mb-6 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
             Spend analytics are exclusive to Pro users. Upgrade to unlock powerful insights.
           </p>
@@ -125,7 +125,7 @@ export default function AnalyticsPage() {
             <h1 className={`text-2xl md:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
               Analytics
             </h1>
-            <p className={`text-sm mt-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+            <p className={`text-sm mt-2 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
               Insights generated from your processed documents based on invoice date.
             </p>
           </div>
@@ -176,7 +176,7 @@ export default function AnalyticsPage() {
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div className={`h-full flex items-center justify-center text-sm ${isDark ? "text-gray-600" : "text-gray-400"}`}>
+                <div className={`h-full flex items-center justify-center text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                   No data available for this period.
                 </div>
               )}
@@ -208,7 +208,7 @@ export default function AnalyticsPage() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className={`h-full flex items-center justify-center text-sm ${isDark ? "text-gray-600" : "text-gray-400"}`}>
+                <div className={`h-full flex items-center justify-center text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                   No data available.
                 </div>
               )}
@@ -237,7 +237,7 @@ export default function AnalyticsPage() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className={`text-sm ${isDark ? "text-gray-600" : "text-gray-400"}`}>
+                <div className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                   No data available.
                 </div>
               )}
