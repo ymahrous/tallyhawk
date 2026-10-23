@@ -46,14 +46,15 @@ This project follows a simple rule: be respectful. Constructive criticism is wel
    ```
 4. Copy the environment file and fill in the required values:
    ```bash
-   cp .env.example .env
+   cp .env.example .env.local
    ```
-5. Start the development server:
+5. Create the database tables, then start the development server (UI and API together):
    ```bash
+   npm run db:migrate
    npm run dev
    ```
 
-The app will be running at `http://localhost:3000`. You will also need a running instance of the [backend API](https://github.com/ymahrous/tallyhawk-backend).
+The app and its API (`/api/v1`) will be running at `http://localhost:3000`. There's no separate backend to run.
 
 ---
 

@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+// The API is served by this same Next.js app (app/api/v1). NEXT_PUBLIC_API_URL can still point the
+// client at another origin, which the unit and e2e tests use to intercept requests.
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 export interface Document {
   id: string;
@@ -166,7 +168,7 @@ export async function uploadDocument(file: File): Promise<Document> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await authFetch(`${API_URL}/upload/`, {
+  const res = await authFetch(`${API_URL}/upload`, {
     method: "POST",
     body: formData,
   });
@@ -184,7 +186,7 @@ export async function uploadDocument(file: File): Promise<Document> {
 }
 
 export async function getDocuments(signal?: AbortSignal): Promise<Document[]> {
-  const res = await authFetch(`${API_URL}/documents/`, { signal });
+  const res = await authFetch(`${API_URL}/documents`, { signal });
   if (!res.ok) throw new Error("Failed to fetch documents");
   return res.json();
 }

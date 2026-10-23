@@ -3,7 +3,11 @@ import { fileURLToPath } from "node:url";
 
 export default defineConfig({
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./", import.meta.url)) },
+    alias: {
+      "@": fileURLToPath(new URL("./", import.meta.url)),
+      // `server-only` throws outside React Server bundles; tests import server modules directly.
+      "server-only": fileURLToPath(new URL("./node_modules/server-only/empty.js", import.meta.url)),
+    },
   },
   test: {
     environment: "jsdom",
@@ -11,11 +15,11 @@ export default defineConfig({
     include: ["**/*.test.{ts,tsx}"],
     exclude: ["node_modules/**", ".next/**", ".next-e2e/**", "e2e/**"],
     // lib/api.ts reads this at import time; test/api-mock.ts routes requests for this origin.
-    env: { NEXT_PUBLIC_API_URL: "http://api.test" },
+    env: { NEXT_PUBLIC_API_URL: "http://api.test", SECRET_KEY: "test-secret-key", BCRYPT_ROUNDS: "4" },
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "text", "html", "lcov"],
-      include: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}"],
+      include: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}", "server/**/*.ts"],
       exclude: [
         "**/*.test.{ts,tsx}",
         // Satori/ImageResponse renders at build time and is covered by the e2e SEO suite instead.
@@ -23,6 +27,9 @@ export default defineConfig({
         "app/**/opengraph-image.tsx",
         // Generated shadcn primitives with no app-specific logic.
         "components/ui/{badge,button,card,separator,skeleton,table}.tsx",
+        // Thin wrappers around third-party SDKs and the pg pool; their callers are tested with these mocked.
+        "server/{ai,storage,email,stripe,background}.ts",
+        "server/db/index.ts",
       ],
       thresholds: {
         statements: 85,

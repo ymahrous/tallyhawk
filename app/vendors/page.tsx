@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTheme } from "@/app/providers/ThemeContext";
+import { API_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 type Vendor = {
@@ -21,7 +22,6 @@ export default function VendorsPage() {
   const [mergeSource, setMergeSource] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
   // 1. Ensure component is mounted (prevents localStorage SSR crash)
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function VendorsPage() {
 
   const fetchVendors = async (userToken: string) => {
     try {
-      const res = await fetch(`${API_BASE}/vendors/`, {
+      const res = await fetch(`${API_URL}/vendors`, {
         headers: { Authorization: `Bearer ${userToken}` },
       });
       
@@ -74,7 +74,7 @@ export default function VendorsPage() {
     if (!newName || newName.trim() === "" || newName.trim() === currentName) return;
 
     try {
-      const res = await fetch(`${API_BASE}/vendors/${vendorId}/rename`, {
+      const res = await fetch(`${API_URL}/vendors/${vendorId}/rename`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -94,7 +94,7 @@ export default function VendorsPage() {
     if (!confirm("Merge this vendor? All documents will be re-assigned to the target vendor.")) return;
 
     try {
-      const res = await fetch(`${API_BASE}/vendors/${sourceId}/merge`, {
+      const res = await fetch(`${API_URL}/vendors/${sourceId}/merge`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

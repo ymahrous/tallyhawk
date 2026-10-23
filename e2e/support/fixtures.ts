@@ -133,7 +133,7 @@ export function accountRoutes({
     "GET /stats/dashboard": {
       json: { processed: 0, synced: 0, month_spend: 0, base_currency: baseCurrency },
     },
-    "GET /documents/": { json: [] },
+    "GET /documents": { json: [] },
   };
 }
 

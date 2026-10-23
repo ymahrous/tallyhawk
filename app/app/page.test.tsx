@@ -36,7 +36,7 @@ function dashboardApi(documents: Document[], extra: Routes = {}) {
   signIn();
   return mockApi({
     ...accountRoutes({ used: documents.length }),
-    "GET /documents/": { json: documents },
+    "GET /documents": { json: documents },
     "GET /stats/dashboard": {
       json: { processed: 12, synced: 5, month_spend: 432.1, base_currency: "USD" },
     },
@@ -90,23 +90,23 @@ describe("dashboard", () => {
   });
 
   it("uploads a file and refreshes the list", async () => {
-    const server = dashboardApi([], { "POST /upload/": { json: doc("new", "PENDING") } });
+    const server = dashboardApi([], { "POST /upload": { json: doc("new", "PENDING") } });
     const { container } = renderWithProviders(<DashboardPage />);
     await screen.findByText("No documents yet");
 
-    server.set({ "GET /documents/": { json: [doc("new", "PENDING", "receipt.pdf")] } });
+    server.set({ "GET /documents": { json: [doc("new", "PENDING", "receipt.pdf")] } });
     await userEvent.upload(
       container.querySelector<HTMLInputElement>("#file-upload")!,
       new File(["%PDF"], "receipt.pdf", { type: "application/pdf" })
     );
 
     expect(await screen.findByText("receipt.pdf", { selector: "span" })).toBeInTheDocument();
-    expect(server.callsTo("POST /upload/")).toHaveLength(1);
+    expect(server.callsTo("POST /upload")).toHaveLength(1);
   });
 
   it("prompts an upgrade when the free limit is reached", async () => {
     dashboardApi([], {
-      "POST /upload/": { status: 403, json: { detail: { error: "limit_exceeded" } } },
+      "POST /upload": { status: 403, json: { detail: { error: "limit_exceeded" } } },
     });
     const { container } = renderWithProviders(<DashboardPage />);
     await screen.findByText("No documents yet");
@@ -122,7 +122,7 @@ describe("dashboard", () => {
   });
 
   it("reports generic upload and validation failures", async () => {
-    dashboardApi([], { "POST /upload/": { status: 500, json: {} } });
+    dashboardApi([], { "POST /upload": { status: 500, json: {} } });
     const { container } = renderWithProviders(<DashboardPage />);
     await screen.findByText("No documents yet");
     const input = container.querySelector<HTMLInputElement>("#file-upload")!;
@@ -141,7 +141,7 @@ describe("dashboard", () => {
     renderWithProviders(<DashboardPage />);
     await screen.findByRole("heading", { name: "Failed (1)" });
 
-    server.set({ "GET /documents/": { json: [] } });
+    server.set({ "GET /documents": { json: [] } });
     await userEvent.click(screen.getByRole("button", { name: "Delete document" }));
 
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Failed (1)" })).toBeNull());
@@ -178,20 +178,20 @@ describe("dashboard", () => {
     const server = dashboardApi([doc("p", "PROCESSING")]);
     renderWithProviders(<DashboardPage />);
     await screen.findByRole("heading", { name: "Processing (1)" });
-    const before = server.callsTo("GET /documents/").length;
+    const before = server.callsTo("GET /documents").length;
 
     await act(() => vi.advanceTimersByTimeAsync(3100));
 
-    expect(server.callsTo("GET /documents/").length).toBeGreaterThan(before);
+    expect(server.callsTo("GET /documents").length).toBeGreaterThan(before);
   });
 
   it("switches to fast polling right after an upload (regression: it waited out the 30s idle interval)", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const server = dashboardApi([], { "POST /upload/": { json: doc("new", "PENDING") } });
+    const server = dashboardApi([], { "POST /upload": { json: doc("new", "PENDING") } });
     const { container } = renderWithProviders(<DashboardPage />);
     await screen.findByText("No documents yet");
 
-    server.set({ "GET /documents/": { json: [doc("new", "PROCESSING", "receipt.pdf")] } });
+    server.set({ "GET /documents": { json: [doc("new", "PROCESSING", "receipt.pdf")] } });
     await userEvent.upload(
       container.querySelector<HTMLInputElement>("#file-upload")!,
       new File(["%PDF"], "receipt.pdf", { type: "application/pdf" })
@@ -199,7 +199,7 @@ describe("dashboard", () => {
     await screen.findByRole("heading", { name: "Processing (1)" });
 
     server.set({
-      "GET /documents/": { json: [doc("new", "COMPLETED", "receipt.pdf")] },
+      "GET /documents": { json: [doc("new", "COMPLETED", "receipt.pdf")] },
       "GET /extraction/new": extraction("new", "Hetzner"),
     });
     await act(() => vi.advanceTimersByTimeAsync(3100));

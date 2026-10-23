@@ -23,8 +23,11 @@ vi.mock("next/image", () => ({
     createElement("img", { src, alt, width, height, ...rest }),
 }));
 
+// Server tests (server/**, app/api/**) opt into `// @vitest-environment node`, where there is no DOM.
+const hasDom = typeof window !== "undefined";
+
 // jsdom lacks matchMedia (ThemeContext) and ResizeObserver (recharts).
-Object.defineProperty(window, "matchMedia", {
+if (hasDom) Object.defineProperty(window, "matchMedia", {
   writable: true,
   configurable: true,
   value: (query: string) => ({
@@ -51,9 +54,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  cleanup();
-  localStorage.clear();
-  document.documentElement.className = "";
+  if (hasDom) {
+    cleanup();
+    localStorage.clear();
+    document.documentElement.className = "";
+  }
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });

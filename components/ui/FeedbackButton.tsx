@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTheme } from "@/app/providers/ThemeContext";
+import { API_URL } from "@/lib/api";
 const feedbackTypes = ["Suggestion", "Bug", "Other"];
 const ChatIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -26,7 +27,6 @@ export default function FeedbackButton() {
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
   const handleSend = async () => {
     if (!text.trim()) return;
@@ -36,7 +36,7 @@ export default function FeedbackButton() {
     setIsSending(true);
 
     try {
-      const res = await fetch(`${API_BASE}/feedback/`, {
+      const res = await fetch(`${API_URL}/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: activeType, message: sanitizedText }),

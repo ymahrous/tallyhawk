@@ -87,7 +87,7 @@ test.describe("account, billing and analytics", () => {
     ];
     api.set({
       ...accountRoutes(),
-      "GET /vendors/": () => ({ json: vendors }),
+      "GET /vendors": () => ({ json: vendors }),
       "POST /vendors/v1/merge": () => {
         vendors = [{ id: "v2", canonical_name: "Amazon", aliases: ["Amazon.com", "AMZN Mktp"] }];
         return { json: {} };

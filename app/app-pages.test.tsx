@@ -113,7 +113,7 @@ describe("vendors page", () => {
   });
 
   it("lists vendors with their aliases", async () => {
-    as("free", { "GET /vendors/": { json: vendors } });
+    as("free", { "GET /vendors": { json: vendors } });
     renderWithProviders(<VendorsPage />);
     expect(await screen.findByRole("button", { name: "Amazon" })).toBeInTheDocument();
     expect(screen.getByText("Aliases: AMZN Mktp, Amazon.com")).toBeInTheDocument();
@@ -122,7 +122,7 @@ describe("vendors page", () => {
 
   it("renames a vendor", async () => {
     const server = as("free", {
-      "GET /vendors/": { json: vendors },
+      "GET /vendors": { json: vendors },
       "PATCH /vendors/v2/rename": { json: {} },
     });
     vi.spyOn(window, "prompt").mockReturnValue("  Figma Inc. ");
@@ -135,7 +135,7 @@ describe("vendors page", () => {
   });
 
   it("ignores an unchanged or cancelled rename", async () => {
-    const server = as("free", { "GET /vendors/": { json: vendors } });
+    const server = as("free", { "GET /vendors": { json: vendors } });
     const prompt = vi
       .spyOn(window, "prompt")
       .mockReturnValueOnce("Figma")
@@ -151,7 +151,7 @@ describe("vendors page", () => {
 
   it("merges one vendor into another after confirmation", async () => {
     const server = as("free", {
-      "GET /vendors/": { json: vendors },
+      "GET /vendors": { json: vendors },
       "POST /vendors/v1/merge": { json: {} },
     });
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -168,7 +168,7 @@ describe("vendors page", () => {
   });
 
   it("can cancel a merge", async () => {
-    as("free", { "GET /vendors/": { json: vendors } });
+    as("free", { "GET /vendors": { json: vendors } });
     renderWithProviders(<VendorsPage />);
     await userEvent.click((await screen.findAllByRole("button", { name: "Merge Into..." }))[0]);
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -176,13 +176,13 @@ describe("vendors page", () => {
   });
 
   it("shows an empty state", async () => {
-    as("free", { "GET /vendors/": { json: [] } });
+    as("free", { "GET /vendors": { json: [] } });
     renderWithProviders(<VendorsPage />);
     expect(await screen.findByText(/No vendors found/)).toBeInTheDocument();
   });
 
   it("returns to login when the session has expired server-side", async () => {
-    as("free", { "GET /vendors/": { status: 401, json: {} } });
+    as("free", { "GET /vendors": { status: 401, json: {} } });
     renderWithProviders(<VendorsPage />);
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/login"));
   });
@@ -373,7 +373,7 @@ describe("capture page", () => {
   });
 
   it("uploads a photo and confirms it", async () => {
-    const server = as("free", { "POST /upload/": { json: { id: "x" } } });
+    const server = as("free", { "POST /upload": { json: { id: "x" } } });
     const { container } = renderWithProviders(<CapturePage />);
     expect(capture(container)).toHaveAttribute("capture", "environment");
 
@@ -383,11 +383,11 @@ describe("capture page", () => {
     );
 
     expect(await screen.findByRole("status")).toHaveTextContent("Uploaded!");
-    expect(server.callsTo("POST /upload/")).toHaveLength(1);
+    expect(server.callsTo("POST /upload")).toHaveLength(1);
   });
 
   it("explains the free-tier limit", async () => {
-    as("free", { "POST /upload/": { status: 403, json: { detail: { error: "limit_exceeded" } } } });
+    as("free", { "POST /upload": { status: 403, json: { detail: { error: "limit_exceeded" } } } });
     const { container } = renderWithProviders(<CapturePage />);
     await userEvent.upload(
       capture(container),
@@ -402,7 +402,7 @@ describe("capture page", () => {
     const huge = new File([new Uint8Array(11 * 1024 * 1024)], "huge.jpg", { type: "image/jpeg" });
     await userEvent.upload(capture(container), huge);
     expect(await screen.findByRole("alert")).toHaveTextContent("File too large");
-    expect(server.callsTo("POST /upload/")).toHaveLength(0);
+    expect(server.callsTo("POST /upload")).toHaveLength(0);
   });
 
   it("goes back to the dashboard", async () => {

@@ -103,7 +103,7 @@ describe("signup", () => {
 describe("authFetch (via protected endpoints)", () => {
   it("attaches the bearer token", async () => {
     const token = signIn();
-    const server = mockApi({ "GET /documents/": { json: [] } });
+    const server = mockApi({ "GET /documents": { json: [] } });
 
     await api.getDocuments();
 
@@ -121,7 +121,7 @@ describe("authFetch (via protected endpoints)", () => {
 
   it("treats a 401 as an expired session and clears the token", async () => {
     signIn();
-    mockApi({ "GET /documents/": { status: 401, json: { detail: "Unauthorized" } } });
+    mockApi({ "GET /documents": { status: 401, json: { detail: "Unauthorized" } } });
 
     await expect(api.getDocuments()).rejects.toThrow("Session expired");
     expect(localStorage.getItem("token")).toBeNull();
@@ -129,7 +129,7 @@ describe("authFetch (via protected endpoints)", () => {
 
   it("passes the abort signal through", async () => {
     signIn();
-    mockApi({ "GET /documents/": { json: [] } });
+    mockApi({ "GET /documents": { json: [] } });
     const controller = new AbortController();
     controller.abort();
 
@@ -144,25 +144,25 @@ describe("documents", () => {
 
   it("uploads the file as multipart form data", async () => {
     const server = mockApi({
-      "POST /upload/": { json: { id: "doc-1", filename: "r.pdf", status: "PENDING" } },
+      "POST /upload": { json: { id: "doc-1", filename: "r.pdf", status: "PENDING" } },
     });
     const file = new File(["%PDF"], "r.pdf", { type: "application/pdf" });
 
     const doc = await api.uploadDocument(file);
 
     expect(doc.id).toBe("doc-1");
-    const body = server.callsTo("POST /upload/")[0].body as FormData;
+    const body = server.callsTo("POST /upload")[0].body as FormData;
     expect(body).toBeInstanceOf(FormData);
     expect((body.get("file") as File).name).toBe("r.pdf");
   });
 
   it("maps the free-tier limit error to limit_exceeded", async () => {
-    mockApi({ "POST /upload/": { status: 403, json: { detail: { error: "limit_exceeded" } } } });
+    mockApi({ "POST /upload": { status: 403, json: { detail: { error: "limit_exceeded" } } } });
     await expect(api.uploadDocument(new File(["x"], "r.pdf"))).rejects.toThrow("limit_exceeded");
   });
 
   it("reports other upload failures", async () => {
-    mockApi({ "POST /upload/": { status: 500, json: {} } });
+    mockApi({ "POST /upload": { status: 500, json: {} } });
     await expect(api.uploadDocument(new File(["x"], "r.pdf"))).rejects.toThrow("Upload failed");
   });
 

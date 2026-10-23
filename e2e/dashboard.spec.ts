@@ -47,7 +47,7 @@ test.describe("dashboard", () => {
   test("shows processed documents with converted amounts and flags", async ({ page, api }) => {
     api.set({
       ...accountRoutes(),
-      "GET /documents/": {
+      "GET /documents": {
         json: [
           doc("a", "COMPLETED", "figma.pdf", { flags: "possible_duplicate" }),
           doc("b", "FAILED", "blurry.jpg"),
@@ -76,8 +76,8 @@ test.describe("dashboard", () => {
     let documents: Doc[] = [];
     api.set({
       ...accountRoutes(),
-      "GET /documents/": () => ({ json: documents }),
-      "POST /upload/": () => {
+      "GET /documents": () => ({ json: documents }),
+      "POST /upload": () => {
         documents = [doc("new", "PROCESSING", "receipt.pdf")];
         return { json: documents[0] };
       },
@@ -100,7 +100,7 @@ test.describe("dashboard", () => {
     documents = [doc("new", "COMPLETED", "receipt.pdf")];
     await expect(page.getByText("Hetzner Online")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "Results (1)" })).toBeVisible();
-    expect(api.calls("POST /upload/")).toHaveLength(1);
+    expect(api.calls("POST /upload")).toHaveLength(1);
   });
 
   test("rejects unsupported files without calling the backend", async ({ page, api }) => {
@@ -113,13 +113,13 @@ test.describe("dashboard", () => {
     await expect(
       page.getByRole("alert").filter({ hasText: "Unsupported file extension" })
     ).toBeVisible();
-    expect(api.calls("POST /upload/")).toHaveLength(0);
+    expect(api.calls("POST /upload")).toHaveLength(0);
   });
 
   test("hitting the free limit offers an upgrade", async ({ page, api }) => {
     api.set({
       ...accountRoutes({ used: 10 }),
-      "POST /upload/": { status: 403, json: { detail: { error: "limit_exceeded" } } },
+      "POST /upload": { status: 403, json: { detail: { error: "limit_exceeded" } } },
     });
     await page.goto("/app");
     await page
@@ -135,7 +135,7 @@ test.describe("dashboard", () => {
     let documents = [doc("bad", "FAILED", "blurry.jpg")];
     api.set({
       ...accountRoutes(),
-      "GET /documents/": () => ({ json: documents }),
+      "GET /documents": () => ({ json: documents }),
       "DELETE /documents/bad": () => {
         documents = [];
         return { status: 204 };
@@ -154,7 +154,7 @@ test.describe("dashboard", () => {
     api.set({
       ...accountRoutes({ plan: "pro" }),
       "GET /quickbooks/status": { json: { connected: true } },
-      "GET /documents/": { json: [doc("a", "COMPLETED", "figma.pdf")] },
+      "GET /documents": { json: [doc("a", "COMPLETED", "figma.pdf")] },
       "GET /extraction/a": extraction("a", "Figma", 40),
       "GET /quickbooks/sync-status/a": { json: { synced: false } },
       "POST /quickbooks/sync/a": { json: {} },

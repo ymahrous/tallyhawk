@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { exportTaxSummary } from "@/lib/api";
+import { API_URL, exportTaxSummary } from "@/lib/api";
 import { usePlan } from "../providers/PlanContext";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { useSettings } from "@/app/providers/SettingsContext";
@@ -219,7 +219,7 @@ export default function AccountPage() {
     setIsChangingPassword(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/change-password`, {
+      const res = await fetch(`${API_URL}/auth/change-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -322,7 +322,7 @@ export default function AccountPage() {
     setDeleteError("");
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/delete`, {
+      const res = await fetch(`${API_URL}/auth/delete`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` },
       });

@@ -14,7 +14,7 @@ describe("FeedbackButton", () => {
   });
 
   it("sends the selected type with a sanitized message", async () => {
-    const server = mockApi({ "POST /feedback/": { json: {} } });
+    const server = mockApi({ "POST /feedback": { json: {} } });
     renderWithProviders(<FeedbackButton />);
 
     await userEvent.click(screen.getByRole("button", { name: "Send feedback" }));
@@ -27,14 +27,14 @@ describe("FeedbackButton", () => {
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Sent!" })).toBeInTheDocument());
-    expect(server.callsTo("POST /feedback/")[0].body).toEqual({
+    expect(server.callsTo("POST /feedback")[0].body).toEqual({
       type: "Bug",
       message: "&lt;b&gt;Upload&lt;/b&gt; broke",
     });
   });
 
   it("does not claim success when the backend rejects the feedback", async () => {
-    mockApi({ "POST /feedback/": { status: 500, json: {} } });
+    mockApi({ "POST /feedback": { status: 500, json: {} } });
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     renderWithProviders(<FeedbackButton />);

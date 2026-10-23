@@ -35,13 +35,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit, component and integration tests (with coverage thresholds)
+      # Includes the API route tests, which run against an in-process Postgres (PGlite) — no services needed.
+      - name: Unit, component, integration and API tests (with coverage thresholds)
         run: npm run test:coverage
 
       - name: Build
         run: npm run build
+        # Server secrets are read lazily at request time, so the build needs none of them.
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
           NEXT_PUBLIC_S3_BUCKET_URL: ${{ secrets.NEXT_PUBLIC_S3_BUCKET_URL }}
 
