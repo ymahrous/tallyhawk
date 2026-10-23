@@ -24,10 +24,17 @@ export const GET = route(async (request) => {
   const tokens = (await res.json()) as QbTokens;
 
   const values = { realmId, accessToken: tokens.access_token, refreshToken: tokens.refresh_token, updatedAt: new Date() };
-  await getDb()
-    .insert(quickbooksConnections)
-    .values({ userId: state.sub, ...values })
-    .onConflictDoUpdate({ target: quickbooksConnections.userId, set: values });
+  try {
+    await getDb()
+      .insert(quickbooksConnections)
+      .values({ userId: state.sub, ...values })
+      .onConflictDoUpdate({ target: quickbooksConnections.userId, set: values });
+  } catch (error) {
+    // E.g. the account was deleted while the user was on Intuit's consent screen. This is a browser
+    // redirect, so answer with one rather than route()'s JSON 500.
+    console.error(JSON.stringify({ level: "error", event: "qb_connection_save_failed", error: String(error) }));
+    return back("qb_error=save_failed");
+  }
 
   return back("qb_success=true");
 });

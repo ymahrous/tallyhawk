@@ -7,6 +7,8 @@ import { documents, extractions, type ExtractedData } from "./db/schema";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function vendorsMatch(a: string, b: string): boolean {
+  // Every string contains "", so a document without a vendor would otherwise match all of them.
+  if (!a || !b) return false;
   return a.includes(b) || b.includes(a);
 }
 

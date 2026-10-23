@@ -41,9 +41,9 @@ jobs:
 
       - name: Build
         run: npm run build
-        # Server secrets are read lazily at request time, so the build needs none of them.
+        # Server secrets are read lazily at request time, so the build needs none of them. The bucket
+        # host is optional too (an unset one just allows no remote images), e.g. on fork PRs.
         env:
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
           NEXT_PUBLIC_S3_BUCKET_URL: ${{ secrets.NEXT_PUBLIC_S3_BUCKET_URL }}
 
   e2e:

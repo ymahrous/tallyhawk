@@ -50,12 +50,12 @@ describe("dashboard stats", () => {
     const { doc: synced } = await createDocument(db, { ownerId: user.id, extraction: null });
     await db.update(documents).set({ quickbooksSynced: true }).where(eq(documents.id, synced.id));
 
-    expect((await call(dashboard, "GET", "/stats/dashboard", { token })).json).toEqual({ processed: 6, synced: 1, month_spend: 16.55, excluded_from_month_spend: 1 });
+    expect((await call(dashboard, "GET", "/stats/dashboard", { token })).json).toEqual({ processed: 6, synced: 1, month_spend: 16.55, base_currency: "USD", excluded_from_month_spend: 1 });
   });
 
   it("is zero for a new user", async () => {
     const { token } = await createUser(db);
-    expect((await call(dashboard, "GET", "/stats/dashboard", { token })).json).toEqual({ processed: 0, synced: 0, month_spend: 0, excluded_from_month_spend: 0 });
+    expect((await call(dashboard, "GET", "/stats/dashboard", { token })).json).toEqual({ processed: 0, synced: 0, month_spend: 0, base_currency: "USD", excluded_from_month_spend: 0 });
   });
 });
 
@@ -124,10 +124,22 @@ describe("vendors", () => {
     expect(res.json).toMatchObject({ id: v.id, canonical_name: "Amazon", aliases: ["AMZN MKTP"] });
     expect((await db.select().from(extractions).where(eq(extractions.id, ext!.id)))[0].extractedData).toEqual({ vendor: "Amazon", total_amount: "$5" });
 
-    // Renaming again doesn't duplicate aliases.
-    await call(rename, "PATCH", `/vendors/${v.id}/rename`, { token, body: { new_name: "AMZN MKTP" }, params: { vendorId: v.id } });
+    // Renaming back and forth neither duplicates aliases nor lists the canonical name as its own alias.
+    const there = await call(rename, "PATCH", `/vendors/${v.id}/rename`, { token, body: { new_name: "AMZN MKTP" }, params: { vendorId: v.id } });
+    expect(there.json).toMatchObject({ canonical_name: "AMZN MKTP", aliases: ["Amazon"] });
     const back = await call(rename, "PATCH", `/vendors/${v.id}/rename`, { token, body: { new_name: "Amazon" }, params: { vendorId: v.id } });
-    expect(back.json.aliases).toEqual(["AMZN MKTP", "Amazon"]);
+    expect(back.json.aliases).toEqual(["AMZN MKTP"]);
+  });
+
+  it("rejects empty names and names another vendor already uses (regression: a 500)", async () => {
+    const { user, token } = await createUser(db);
+    const [aws] = await db.insert(vendors).values({ userId: user.id, canonicalName: "AWS" }).returning();
+    await db.insert(vendors).values({ userId: user.id, canonicalName: "Amazon" });
+    const rename_ = (new_name: string) => call(rename, "PATCH", `/vendors/${aws.id}/rename`, { token, body: { new_name }, params: { vendorId: aws.id } });
+
+    expect((await rename_("   ")).status).toBe(422);
+    expect(await rename_("Amazon")).toMatchObject({ status: 400, json: { detail: "Another vendor already has that name. Merge the two vendors instead." } });
+    expect((await rename_("  AWS Inc  ")).json.canonical_name).toBe("AWS Inc");
   });
 
   it("merges a vendor into another", async () => {
@@ -138,7 +150,8 @@ describe("vendors", () => {
 
     const res = await call(merge, "POST", `/vendors/${source.id}/merge`, { token, body: { target_vendor_id: target.id }, params: { vendorId: source.id } });
     expect(res.json.message).toBe("Vendors merged successfully");
-    expect(res.json.surviving_vendor).toMatchObject({ id: target.id, aliases: ["AWS", "aws", "AWS EMEA"] });
+    // "aws" is already known as "AWS" and "Amazon Web Services" is the target's own name.
+    expect(res.json.surviving_vendor).toMatchObject({ id: target.id, aliases: ["AWS", "AWS EMEA"] });
     expect(await db.select().from(vendors)).toHaveLength(1);
     expect((await db.select().from(extractions).where(eq(extractions.id, ext!.id)))[0]).toMatchObject({ vendorId: target.id, extractedData: { vendor: "Amazon Web Services" } });
   });

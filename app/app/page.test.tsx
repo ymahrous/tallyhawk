@@ -173,6 +173,24 @@ describe("dashboard", () => {
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
 
+  it("stays on a real page after deleting the last document of the last page (regression: blank page 2 of 1)", async () => {
+    const docs = Array.from({ length: 11 }, (_, i) => doc(`d${i}`, "COMPLETED", `doc-${i}.pdf`));
+    const routes = Object.fromEntries(
+      docs.map((d) => [`GET /extraction/${d.id}`, extraction(d.id, `Vendor ${d.id}`)])
+    );
+    const server = dashboardApi(docs, { ...routes, "DELETE /documents/d10": { status: 204 } });
+    renderWithProviders(<DashboardPage />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Next" }));
+    expect(screen.getByText("doc-10.pdf")).toBeInTheDocument();
+
+    server.set({ "GET /documents": { json: docs.slice(0, 10) } });
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(await screen.findByText("doc-0.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("Page 2 of 1")).toBeNull();
+  });
+
   it("polls quickly while documents are processing", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const server = dashboardApi([doc("p", "PROCESSING")]);
@@ -230,6 +248,30 @@ describe("dashboard", () => {
     expect(
       screen.getByText(/updating your existing documents to the new currency/)
     ).toBeInTheDocument();
+  });
+
+  it("re-fetches cached extractions once the currency change has settled (regression: cards kept old amounts)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const server = dashboardApi([doc("a", "COMPLETED")], { "GET /extraction/a": extraction("a", "Figma") });
+    renderWithProviders(<DashboardPage />);
+    expect(await screen.findByText("Figma")).toBeInTheDocument();
+    expect(server.callsTo("GET /extraction/a")).toHaveLength(1);
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent("tallyhawk:currency-changed", { detail: { currency: "EUR" } }));
+    });
+    await act(() => vi.advanceTimersByTimeAsync(4100));
+
+    await waitFor(() => expect(server.callsTo("GET /extraction/a")).toHaveLength(2));
+    expect(screen.queryByText(/updating your existing documents/)).toBeNull();
+  });
+
+  it("labels this month's spend with the currency the server computed it in", async () => {
+    dashboardApi([], {
+      "GET /stats/dashboard": { json: { processed: 1, synced: 0, month_spend: 10, base_currency: "EUR" } },
+    });
+    renderWithProviders(<DashboardPage />);
+    expect(await screen.findByText("This Month (EUR)")).toBeInTheDocument();
   });
 });
 

@@ -36,12 +36,13 @@ export interface Extraction {
   category?: string;
   vendor_id?: string | null;
   vendor?: VendorData | null;
-  original_currency?: string;
-  original_amount?: number;
+  // null on legacy rows processed before multi-currency support
+  original_currency?: string | null;
+  original_amount?: number | null;
   converted_amount?: number | null;
+  /** The currency converted_amount is in: the base currency when it was (re)converted, not necessarily the current one. */
   converted_currency?: string | null;
   exchange_rate?: number | null;
-  base_currency?: string;  // User's base currency when extracted
 }
 
 export type TokenPayload = {
@@ -63,6 +64,23 @@ export async function getSubscription(): Promise<SubscriptionData> {
   const res = await authFetch(`${API_URL}/billing/subscription`);
   if (!res.ok) throw new Error("Failed to fetch subscription");
   return res.json();
+}
+
+/**
+ * The message to show for a failed request. The API answers `{ detail: string }` for most errors, but
+ * validation failures (422) carry a list of `{ msg }` issues, and the upload limit an object.
+ */
+export function errorMessage(data: unknown, fallback: string): string {
+  const detail = (data as { detail?: unknown } | null)?.detail;
+  if (typeof detail === "string" && detail) return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((issue) => (issue as { msg?: unknown } | null)?.msg)
+      .filter((msg): msg is string => typeof msg === "string");
+    if (messages.length) return messages.join(" ");
+  }
+  const message = (detail as { message?: unknown } | null)?.message;
+  return typeof message === "string" && message ? message : fallback;
 }
 
 export function decodeToken(): TokenPayload | null {
@@ -88,14 +106,8 @@ export async function login(username: string, password: string): Promise<AuthRes
   });
 
   if (!res.ok) {
-    let detail = "Invalid credentials";
-    try {
-      const errorData = await res.json();
-      if (typeof errorData.detail === "string") detail = errorData.detail;
-    } catch {
-      // Response body was not valid JSON; use default message
-    }
-    throw new Error(detail);
+    const errorData = await res.json().catch(() => null);
+    throw new Error(errorMessage(errorData, "Invalid credentials"));
   }
 
   const data: AuthResponse = await res.json();
@@ -117,8 +129,8 @@ export async function signup(email: string, password: string): Promise<void> {
   });
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || "Signup failed");
+    const data = await res.json().catch(() => null);
+    throw new Error(errorMessage(data, "Signup failed"));
   }
 
   const data = await res.json();
@@ -179,7 +191,7 @@ export async function uploadDocument(file: File): Promise<Document> {
     if (errorData.detail && errorData.detail.error === "limit_exceeded") {
       throw new Error("limit_exceeded");
     }
-    throw new Error(errorData.detail || "Upload failed");
+    throw new Error(errorMessage(errorData, "Upload failed"));
   }
   
   return res.json();
@@ -240,8 +252,6 @@ export async function createCheckoutSession(): Promise<{ url: string }> {
   return res.json();
 }
 
-// Add these to lib/api.ts
-
 export interface UsageData {
   plan: string;
   documents_processed: number;
@@ -272,8 +282,8 @@ export async function syncToQuickBooks(documentId: string): Promise<void> {
     method: "POST",
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || "Failed to sync to QuickBooks");
+    const data = await res.json().catch(() => null);
+    throw new Error(errorMessage(data, "Failed to sync to QuickBooks"));
   }
 }
 
@@ -282,8 +292,8 @@ export async function disconnectQuickBooks(): Promise<void> {
     method: "DELETE",
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || "Failed to disconnect QuickBooks");
+    const data = await res.json().catch(() => null);
+    throw new Error(errorMessage(data, "Failed to disconnect QuickBooks"));
   }
 }
 
@@ -323,6 +333,7 @@ export interface DashboardStats {
   processed: number;
   synced: number;
   month_spend: number;
+  /** The currency month_spend is in (the account's base currency when the stats were computed). */
   base_currency?: string;
   excluded_from_month_spend?: number;
 }
@@ -348,8 +359,8 @@ export async function resetPassword(token: string, new_password: string): Promis
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, new_password }),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || "Failed to reset password");
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(errorMessage(data, "Failed to reset password"));
 }
 
 // --- SETTINGS FUNCTIONS ---
@@ -374,8 +385,70 @@ export async function updateSettings(baseCurrency: string): Promise<UserSettings
     body: JSON.stringify({ base_currency: baseCurrency }),
   });
   if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Failed to update settings");
+    const errorData = await res.json().catch(() => null);
+    throw new Error(errorMessage(errorData, "Failed to update settings"));
   }
   return res.json();
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await authFetch(`${API_URL}/auth/change-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(errorMessage(data, "Failed to change password."));
+  }
+}
+
+export async function deleteAccount(): Promise<void> {
+  const res = await authFetch(`${API_URL}/auth/delete`, { method: "DELETE" });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(errorMessage(data, "Failed to delete account."));
+  }
+}
+
+// --- VENDOR FUNCTIONS ---
+export async function getVendors(): Promise<VendorData[]> {
+  const res = await authFetch(`${API_URL}/vendors`);
+  if (!res.ok) throw new Error("Failed to fetch vendors");
+  return res.json();
+}
+
+export async function renameVendor(vendorId: string, newName: string): Promise<VendorData> {
+  const res = await authFetch(`${API_URL}/vendors/${vendorId}/rename`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ new_name: newName }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(errorMessage(data, "Failed to rename vendor"));
+  }
+  return res.json();
+}
+
+export async function mergeVendors(sourceId: string, targetId: string): Promise<void> {
+  const res = await authFetch(`${API_URL}/vendors/${sourceId}/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target_vendor_id: targetId }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(errorMessage(data, "Failed to merge vendors"));
+  }
+}
+
+// --- FEEDBACK (open to signed-out visitors, so no auth header) ---
+export async function sendFeedback(type: string, message: string): Promise<void> {
+  const res = await fetch(`${API_URL}/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, message }),
+  });
+  if (!res.ok) throw new Error(`Feedback request failed with ${res.status}`);
 }

@@ -7,6 +7,8 @@ import { CurrencyCode } from "@/lib/currency";
 interface SettingsData {
   baseCurrency: CurrencyCode;
   plan: "free" | "pro";
+  /** When the account was created (ISO timestamp); null until settings have loaded. */
+  createdAt: string | null;
   isLoading: boolean;
   refreshSettings: () => Promise<void>;
   updateBaseCurrency: (currency: CurrencyCode) => Promise<void>;
@@ -15,6 +17,7 @@ interface SettingsData {
 const SettingsContext = createContext<SettingsData>({
   baseCurrency: "USD",
   plan: "free",
+  createdAt: null,
   isLoading: true,
   refreshSettings: async () => {},
   updateBaseCurrency: async () => {},
@@ -31,6 +34,7 @@ function getInitialBaseCurrency(): CurrencyCode {
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [baseCurrency, setBaseCurrency] = useState<CurrencyCode>(getInitialBaseCurrency);
   const [plan, setPlan] = useState<"free" | "pro">("free");
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshSettings = async () => {
@@ -38,6 +42,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const data = await getSettings();
       setBaseCurrency(data.base_currency as CurrencyCode);
       setPlan(data.plan);
+      setCreatedAt(data.created_at);
       localStorage.setItem("tallyhawk_base_currency", data.base_currency);
     } catch {
       // If API fails, keep the stored value or default
@@ -85,6 +90,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       } else {
         setBaseCurrency("USD");
         setPlan("free");
+        setCreatedAt(null);
         setIsLoading(false);
         localStorage.removeItem("tallyhawk_base_currency");
       }
@@ -94,7 +100,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <SettingsContext.Provider value={{ baseCurrency, plan, isLoading, refreshSettings, updateBaseCurrency }}>
+    <SettingsContext.Provider value={{ baseCurrency, plan, createdAt, isLoading, refreshSettings, updateBaseCurrency }}>
       {children}
     </SettingsContext.Provider>
   );
@@ -102,7 +108,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
 export const useSettings = () => useContext(SettingsContext);
 
-// Hook to listen for currency changes from other tabs/components
+// Re-renders on "tallyhawk:currency-changed", which updateBaseCurrency dispatches in this tab
 export function useCurrencyChange() {
   const { baseCurrency } = useSettings();
   const [, forceUpdate] = useState({});

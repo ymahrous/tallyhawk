@@ -32,7 +32,7 @@ export default function AnalyticsPage() {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const { plan } = usePlan();
+  const { plan, isLoading: planLoading } = usePlan();
 
   const currentYear = new Date().getFullYear();
   const AVAILABLE_YEARS = [0, 1, 2, 3, 4, 5].map(i => currentYear - i);
@@ -55,7 +55,9 @@ export default function AnalyticsPage() {
     }
     
     if (plan !== "pro") {
-      setLoading(false);
+      // The plan seeds from the session token and is confirmed by the API; don't flash the upsell
+      // at a Pro user whose token predates their upgrade.
+      if (!planLoading) setLoading(false);
       return;
     }
 
@@ -78,7 +80,7 @@ export default function AnalyticsPage() {
     };
 
     fetchData();
-  }, [plan, router, selectedYear, selectedMonth]);
+  }, [plan, planLoading, router, selectedYear, selectedMonth]);
 
   if (loading) {
     return (
@@ -134,6 +136,7 @@ export default function AnalyticsPage() {
             <select 
               value={selectedYear} 
               onChange={(e) => setSelectedYear(Number(e.target.value))}
+              aria-label="Year"
               className={`text-sm px-3 py-2.5 rounded-lg border outline-none cursor-pointer ${isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}`}
             >
               {AVAILABLE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
@@ -141,6 +144,7 @@ export default function AnalyticsPage() {
             <select 
               value={selectedMonth || ""} 
               onChange={(e) => setSelectedMonth(e.target.value ? Number(e.target.value) : undefined)}
+              aria-label="Month"
               className={`text-sm px-3 py-2.5 rounded-lg border outline-none cursor-pointer ${isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}`}
             >
               {MONTHS.map(m => <option key={m.label} value={m.value || ""}>{m.label}</option>)}

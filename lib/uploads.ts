@@ -3,7 +3,7 @@ export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 export const ACCEPTED_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png"];
 export const ACCEPTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
 
-/** Client-side pre-flight check mirroring the backend's upload rules. Returns an error message, or null when valid. */
+/** Upload rules, checked by the upload forms before sending and again by POST /upload. Returns an error message, or null when valid. */
 export function validateUploadFile(file: Pick<File, "name" | "type" | "size">): string | null {
   const fileName = file.name.toLowerCase();
   if (!ACCEPTED_EXTENSIONS.some((ext) => fileName.endsWith(ext))) {

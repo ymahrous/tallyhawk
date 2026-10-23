@@ -8,6 +8,7 @@ import {
 } from "@/lib/api";
 import { useSettings } from "@/app/providers/SettingsContext";
 import { formatCurrency, CurrencyCode } from "@/lib/currency";
+import { PRODUCT_FACTS } from "@/lib/site";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import UsageMeter from "@/components/ui/UsageMeter";
@@ -111,17 +112,25 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const handleCurrencyChanged = () => {
       setReconvertingCurrency(true);
-      const timer = setTimeout(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        // Extractions are fetched once per document and cached, so drop the cache: otherwise the cards
+        // would keep showing amounts converted into the old currency until a full reload.
+        fetchingIdsRef.current.clear();
+        setExtractions({});
         fetchStats();
         fetchDocs();
         setReconvertingCurrency(false);
       }, 4000);
-      return () => clearTimeout(timer);
     };
     window.addEventListener("tallyhawk:currency-changed", handleCurrencyChanged);
-    return () => window.removeEventListener("tallyhawk:currency-changed", handleCurrencyChanged);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("tallyhawk:currency-changed", handleCurrencyChanged);
+    };
   }, [isAuthenticated, fetchStats, fetchDocs]);
 
   // ── Extractions ──
@@ -183,7 +192,11 @@ export default function DashboardPage() {
   const completedDocs = documents.filter((d) => d.status === "COMPLETED");
   const failedDocs = documents.filter((d) => d.status === "FAILED");
   const totalPages = Math.ceil(completedDocs.length / PAGE_SIZE);
-  const paginatedDocs = completedDocs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Deleting the last document on the last page would otherwise leave an empty, out-of-range page.
+  const currentPage = Math.min(page, Math.max(1, totalPages));
+  const paginatedDocs = completedDocs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  // month_spend is in whatever currency the server computed it in; label it with that, not the cache.
+  const statsCurrency = (stats?.base_currency ?? baseCurrency) as CurrencyCode;
 
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -223,7 +236,7 @@ export default function DashboardPage() {
             {limitError && (
               <UpgradePrompt
                 title="Free Tier Limit Reached"
-                message="You've used all 10 of your monthly document uploads. Upgrade to Pro for unlimited processing, QuickBooks sync, and more."
+                message={`You've used all ${PRODUCT_FACTS.freeDocumentsPerMonth} of your monthly document uploads. Upgrade to Pro for unlimited processing, QuickBooks sync, and more.`}
               />
             )}
             {reconvertingCurrency && (
@@ -247,10 +260,10 @@ export default function DashboardPage() {
             </div>
             <div className={`p-4 rounded-xl border ${isDark ? "border-white/5 bg-white/5" : "border-gray-200 bg-white"}`}>
               <p className={`text-xs mb-1 truncate ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                This Month ({baseCurrency})
+                This Month ({statsCurrency})
               </p>
               <p className={`text-lg sm:text-xl font-semibold wrap-break-word ${isDark ? "text-white" : "text-gray-900"}`}>
-                {formatCurrency(stats.month_spend, baseCurrency as CurrencyCode)}
+                {formatCurrency(stats.month_spend, statsCurrency)}
               </p>
               {!!stats.excluded_from_month_spend && (
                 <p className={`text-[11px] mt-1 ${isDark ? "text-amber-500" : "text-amber-600"}`}>
@@ -363,18 +376,18 @@ export default function DashboardPage() {
 
                 {totalPages > 1 && (
                   <div className={`px-4 sm:px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 ${isDark ? "border-white/10" : "border-gray-200"}`}>
-                    <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>Page {page} of {totalPages}</p>
+                    <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>Page {currentPage} of {totalPages}</p>
                     <div className="flex items-center gap-2">
                       <button 
-                        onClick={() => setPage((p) => Math.max(1, p - 1))} 
-                        disabled={page === 1} 
+                        onClick={() => setPage(Math.max(1, currentPage - 1))} 
+                        disabled={currentPage === 1} 
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? "bg-white/5 hover:bg-white/10 text-gray-300" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
                       >
                         Previous
                       </button>
                       <button 
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))} 
-                        disabled={page === totalPages} 
+                        onClick={() => setPage(Math.min(totalPages, currentPage + 1))} 
+                        disabled={currentPage === totalPages} 
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? "bg-white/5 hover:bg-white/10 text-gray-300" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
                       >
                         Next

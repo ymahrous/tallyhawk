@@ -1,9 +1,11 @@
 import "server-only";
 import { and, eq, sql } from "drizzle-orm";
+import { PRODUCT_FACTS } from "@/lib/site";
 import { getDb } from "./db";
 import { usageRecords } from "./db/schema";
 
-export const FREE_TIER_LIMIT = 10;
+/** The same number the pricing page, FAQs and llms.txt advertise. */
+export const FREE_TIER_LIMIT = PRODUCT_FACTS.freeDocumentsPerMonth;
 
 /** First day of the current UTC month at midnight — the key of a usage record. */
 export function currentMonth(now = new Date()): Date {

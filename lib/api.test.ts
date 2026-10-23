@@ -420,3 +420,93 @@ describe("settings", () => {
     await expect(api.updateSettings("XXX")).rejects.toThrow("Failed to update settings");
   });
 });
+
+describe("errorMessage", () => {
+  it("reads string details, FastAPI-style 422 issue lists and object messages", () => {
+    expect(api.errorMessage({ detail: "Nope" }, "fallback")).toBe("Nope");
+    expect(
+      api.errorMessage(
+        { detail: [{ loc: ["body", "password"], msg: "Password must be at least 8 characters.", type: "custom" }] },
+        "fallback"
+      )
+    ).toBe("Password must be at least 8 characters.");
+    expect(api.errorMessage({ detail: { error: "limit_exceeded", message: "Upgrade" } }, "fallback")).toBe("Upgrade");
+    expect(api.errorMessage({ detail: [{}] }, "fallback")).toBe("fallback");
+    expect(api.errorMessage(null, "fallback")).toBe("fallback");
+  });
+
+  it("never surfaces '[object Object]' for a validation error (regression)", async () => {
+    mockApi({
+      "PATCH /auth/settings": {
+        status: 422,
+        json: { detail: [{ loc: ["body", "base_currency"], msg: "Invalid currency code.", type: "custom" }] },
+      },
+    });
+    signIn();
+    await expect(api.updateSettings("XXX")).rejects.toThrow("Invalid currency code.");
+  });
+});
+
+describe("account, vendors and feedback", () => {
+  beforeEach(() => {
+    signIn();
+  });
+
+  it("changes the password and deletes the account through the authenticated client", async () => {
+    const server = mockApi({
+      "POST /auth/change-password": { json: { message: "ok" } },
+      "DELETE /auth/delete": { status: 204 },
+    });
+    await api.changePassword("Old-pass1", "New-pass1");
+    expect(server.callsTo("POST /auth/change-password")[0].body).toEqual({
+      current_password: "Old-pass1",
+      new_password: "New-pass1",
+    });
+    await api.deleteAccount();
+    expect(server.callsTo("DELETE /auth/delete")[0].headers.get("Authorization")).toMatch(/^Bearer /);
+  });
+
+  it("surfaces account failures", async () => {
+    mockApi({
+      "POST /auth/change-password": { status: 400, json: { detail: "Current password is incorrect." } },
+      "DELETE /auth/delete": { status: 500, body: "" },
+    });
+    await expect(api.changePassword("x", "New-pass1")).rejects.toThrow("Current password is incorrect.");
+    await expect(api.deleteAccount()).rejects.toThrow("Failed to delete account.");
+  });
+
+  it("lists, renames and merges vendors", async () => {
+    const server = mockApi({
+      "GET /vendors": { json: [{ id: "v1", canonical_name: "AWS", aliases: [] }] },
+      "PATCH /vendors/v1/rename": { json: { id: "v1", canonical_name: "Amazon Web Services", aliases: ["AWS"] } },
+      "POST /vendors/v1/merge": { json: { message: "Vendors merged successfully" } },
+    });
+    await expect(api.getVendors()).resolves.toHaveLength(1);
+    await expect(api.renameVendor("v1", "Amazon Web Services")).resolves.toMatchObject({ aliases: ["AWS"] });
+    expect(server.callsTo("PATCH /vendors/v1/rename")[0].body).toEqual({ new_name: "Amazon Web Services" });
+    await api.mergeVendors("v1", "v2");
+    expect(server.callsTo("POST /vendors/v1/merge")[0].body).toEqual({ target_vendor_id: "v2" });
+  });
+
+  it("surfaces vendor failures", async () => {
+    mockApi({
+      "GET /vendors": { status: 500 },
+      "PATCH /vendors/v1/rename": { status: 400, json: { detail: "Another vendor already has that name." } },
+      "POST /vendors/v1/merge": { status: 404, json: { detail: "Vendor(s) not found" } },
+    });
+    await expect(api.getVendors()).rejects.toThrow("Failed to fetch vendors");
+    await expect(api.renameVendor("v1", "Amazon")).rejects.toThrow("Another vendor already has that name.");
+    await expect(api.mergeVendors("v1", "v2")).rejects.toThrow("Vendor(s) not found");
+  });
+
+  it("sends feedback without requiring a session", async () => {
+    localStorage.clear();
+    const server = mockApi({ "POST /feedback": { json: { status: "success" } } });
+    await api.sendFeedback("Bug", "Upload stuck");
+    expect(server.callsTo("POST /feedback")[0].body).toEqual({ type: "Bug", message: "Upload stuck" });
+    expect(server.callsTo("POST /feedback")[0].headers.get("Authorization")).toBeNull();
+
+    server.set({ "POST /feedback": { status: 500 } });
+    await expect(api.sendFeedback("Bug", "x")).rejects.toThrow("Feedback request failed with 500");
+  });
+});

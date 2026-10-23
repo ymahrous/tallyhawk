@@ -49,7 +49,6 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
       { label: "QuickBooks Online sync", included: true },
       { label: "Tax categorization & CSV export", included: true },
       { label: "Spend analytics", included: true },
-      { label: "Priority processing", included: true },
     ],
     cta: "Upgrade to Pro",
     highlight: true,
@@ -72,7 +71,6 @@ export const PLAN_COMPARISON: readonly ComparisonRow[] = [
   { feature: "QuickBooks Online sync", free: false, pro: true },
   { feature: "Tax categorization & CSV export", free: false, pro: true },
   { feature: "Spend analytics", free: false, pro: true },
-  { feature: "Priority processing", free: false, pro: true },
 ];
 
 export function formatPlanPrice(plan: Pick<PricingPlan, "priceMonthly">): string {

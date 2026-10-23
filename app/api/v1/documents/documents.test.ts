@@ -78,6 +78,18 @@ describe("upload", () => {
     expect((await call(upload, "POST", "/upload", { token, body: big })).status).toBe(413);
   });
 
+  it("enforces the same file-type rules as the upload forms", async () => {
+    const { token } = await createUser(db);
+    const exe = await call(upload, "POST", "/upload", { token, body: fileForm("invoice.exe") });
+    expect(exe).toMatchObject({ status: 400, json: { detail: expect.stringMatching(/^Unsupported file extension/) } });
+
+    const form = new FormData();
+    form.append("file", new File(["<svg/>"], "receipt.png", { type: "image/svg+xml" }));
+    expect((await call(upload, "POST", "/upload", { token, body: form })).status).toBe(400);
+    expect(storage.uploadToStorage).not.toHaveBeenCalled();
+    expect(await db.select().from(usageRecords)).toEqual([]);
+  });
+
   it("requires authentication", async () => {
     expect((await call(upload, "POST", "/upload", { body: fileForm() })).status).toBe(401);
   });
@@ -194,6 +206,17 @@ describe("tax summary CSV", () => {
     expect((await call(taxSummary, "GET", "/reports/tax-summary?year=abc", { token: pro.token })).status).toBe(422);
   });
 
+  it("only totals amounts converted into the current base currency, even when the currency column is missing", async () => {
+    const { user, token } = await createUser(db, { plan: "pro" });
+    // Legacy row: converted_amount from before converted_currency existed. Dashboard and analytics
+    // (reliableAmount) exclude it, so the tax export must not add it to the USD totals either.
+    await createDocument(db, { ownerId: user.id, extraction: { extractedData: { vendor: "Old", date: "2026-02-02" }, category: "Meals", convertedAmount: 40, convertedCurrency: null } });
+    const lines = (await call(taxSummary, "GET", "/reports/tax-summary?year=2026", { token })).text.split("\r\n");
+    expect(lines).toContain("2026-02-02,Old,Meals,0.00,USD,N/A,N/A");
+    expect(lines).not.toContain("Meals,40.00");
+    expect(lines).toContain("NOTE: 1 document(s) excluded from the summary above");
+  });
+
   it("totals converted amounts per category and lists stale rows separately", async () => {
     const { user, token } = await createUser(db, { plan: "pro" });
     const add = (extraction: Parameters<typeof createDocument>[1]["extraction"]) => createDocument(db, { ownerId: user.id, extraction });
@@ -203,8 +226,16 @@ describe("tax summary CSV", () => {
     await add({ extractedData: { vendor: "Stale", date: "2026-05-01" }, category: "Software", originalAmount: 20, originalCurrency: "GBP", convertedAmount: 21, convertedCurrency: "EUR", exchangeRate: 1.05 });
     await add({ extractedData: { vendor: "Legacy", date: "2026-06-01", total_amount: "$9.99" }, category: "Software" });
     await add({ extractedData: { vendor: "Last year", date: "2025-12-31" }, category: "Meals", convertedAmount: 5, convertedCurrency: "USD" });
-    await add({ extractedData: { vendor: "No date", date: "12/31/2026" }, category: "Meals", convertedAmount: 5, convertedCurrency: "USD" });
+    // Regression: only YYYY-MM-DD dates used to count, so this one silently vanished from the export
+    // even though analytics (same parser) counts it in 2026.
+    await add({ extractedData: { vendor: "US date", date: "12/31/2026" }, category: "Meals", originalAmount: 5, originalCurrency: "USD", convertedAmount: 5, convertedCurrency: "USD", exchangeRate: 1 });
     await add({ extractedData: { vendor: "Uncategorised", date: "2026-02-01" }, convertedAmount: 5, convertedCurrency: "USD" });
+    // No invoice date: falls back to the upload date, like analytics and the dashboard.
+    await createDocument(db, {
+      ownerId: user.id,
+      createdAt: new Date("2026-04-10T12:00:00Z"),
+      extraction: { extractedData: { vendor: "Undated" }, category: "Software", originalAmount: 30, originalCurrency: "USD", convertedAmount: 30, convertedCurrency: "USD", exchangeRate: 1 },
+    });
 
     const res = await call(taxSummary, "GET", "/reports/tax-summary?year=2026", { token });
     expect(res.headers.get("content-disposition")).toBe("attachment; filename=Tallyhawk_Tax_Summary_2026.csv");
@@ -213,16 +244,19 @@ describe("tax summary CSV", () => {
       "2026-01-15,Cafe,Meals,12.50,USD,12.50,1.000000",
       "2026-01-20,Cafe,Meals,7.50,USD,7.50,1.000000",
       '2026-03-02,"Air, Inc",Travel,"1,000.00",EUR,"1,085.00",1.085000',
-      "2026-05-01,Stale,Software,20.00,GBP,N/A,1.050000",
+      "2026-04-10,Undated,Software,30.00,USD,30.00,1.000000",
+      "2026-05-01,Stale,Software,20.00,GBP,N/A,N/A", // its GBP→EUR rate says nothing about USD
       "2026-06-01,Legacy,Software,9.99,USD,N/A,N/A",
+      "2026-12-31,US date,Meals,5.00,USD,5.00,1.000000",
       "",
       "SUMMARY BY CATEGORY",
       "Category,Total (USD)",
-      "Meals,20.00",
+      "Meals,25.00",
+      "Software,30.00",
       'Travel,"1,085.00"',
       "",
       "NOTE: 2 document(s) excluded from the summary above",
-      "because your base currency changed after they were processed.",
+      '"because they have no up-to-date conversion into USD yet (no exchange rate was available, or your base currency changed after they were processed)."',
       "Date,Vendor,Original Amount,Original Currency",
       "2026-05-01,Stale,20.00,GBP",
       "2026-06-01,Legacy,9.99,USD",

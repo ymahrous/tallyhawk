@@ -77,6 +77,15 @@ describe("OAuth", () => {
     expect(await db.select().from(quickbooksConnections)).toEqual([]);
   });
 
+  it("still redirects when the connection can't be saved (regression: a JSON 500 in the browser)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const orphan = await createAccessToken({ sub: "deleted-user-id", role: "qb_oauth" });
+    stubFetch(() => Response.json({ access_token: "a1", refresh_token: "r1" }));
+    const res = await call(callback, "GET", `/quickbooks/callback?code=abc&state=${orphan}&realmId=r`);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("http://localhost:3000/account?qb_error=save_failed");
+  });
+
   it("reports and removes the connection", async () => {
     const { token } = await connected();
     expect((await call(status, "GET", "/quickbooks/status", { token })).json).toEqual({ connected: true });
@@ -136,7 +145,8 @@ describe("sync", () => {
     const { doc } = await createDocument(db, { ownerId: user.id });
     stubFetch(() => new Response("nope", { status: 401 }));
     const res = await call(sync, "POST", `/quickbooks/sync/${doc.id}`, { token, params: { documentId: doc.id } });
-    expect(res).toMatchObject({ status: 401, json: { detail: "QuickBooks connection expired. Please reconnect." } });
+    // Regression: this was a 401, which the client treats as an expired Tallyhawk session and signs out.
+    expect(res).toMatchObject({ status: 400, json: { detail: "QuickBooks connection expired. Please reconnect." } });
     expect(await db.select().from(quickbooksConnections)).toEqual([]);
   });
 

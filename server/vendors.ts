@@ -49,6 +49,11 @@ export async function matchOrCreateVendor(db: Db, userId: string, rawName: strin
   return raced ?? null;
 }
 
+/** Vendor names and aliases are matched case-insensitively everywhere (see matchOrCreateVendor). */
+export function sameVendorName(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
+}
+
 export function serializeVendor(v: VendorRow) {
   return {
     id: v.id,

@@ -2,6 +2,9 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getUsage, decodeToken, getSubscription } from "@/lib/api";
+import { PRODUCT_FACTS } from "@/lib/site";
+
+const FREE_LIMIT = PRODUCT_FACTS.freeDocumentsPerMonth;
 
 interface PlanData {
   plan: string | null;
@@ -16,7 +19,7 @@ interface PlanData {
 const PlanContext = createContext<PlanData>({
   plan: null,
   documentsProcessed: 0,
-  limit: 10,
+  limit: FREE_LIMIT,
   isLoading: true,
   refreshPlan: async () => {},
   currentPeriodEnd: null,
@@ -34,7 +37,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   // NEW: Initialize state synchronously from the JWT to prevent flicker
   const [plan, setPlan] = useState<string | null>(getInitialPlan);
   const [documentsProcessed, setDocumentsProcessed] = useState(0);
-  const [limit, setLimit] = useState(() => getInitialPlan() === "pro" ? -1 : 10);
+  const [limit, setLimit] = useState(() => getInitialPlan() === "pro" ? -1 : FREE_LIMIT);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
   const [lastRenewalDate, setLastRenewalDate] = useState<string | null>(null);
@@ -87,7 +90,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       } else {
         setPlan(null);
         setDocumentsProcessed(0);
-        setLimit(10);
+        setLimit(FREE_LIMIT);
         setCurrentPeriodEnd(null);
         setLastRenewalDate(null);
         setIsLoading(false);

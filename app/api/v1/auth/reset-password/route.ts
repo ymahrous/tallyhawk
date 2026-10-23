@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { hashPassword } from "@/server/auth";
+import { hashPassword, newPassword } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { passwordResetTokens, users } from "@/server/db/schema";
 import { ApiError, json, parseJson, route } from "@/server/http";
 
-const Body = z.object({ token: z.string(), new_password: z.string() });
+const Body = z.object({ token: z.string(), new_password: newPassword });
 
 export const POST = route(async (request) => {
   const body = await parseJson(request, Body);

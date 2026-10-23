@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDb } from "@/server/db";
 import { extractions, vendors } from "@/server/db/schema";
 import { ApiError, getCurrentUser, json, parseJson, route, type Params } from "@/server/http";
-import { serializeVendor } from "@/server/vendors";
+import { sameVendorName, serializeVendor } from "@/server/vendors";
 
 const Body = z.object({ target_vendor_id: z.string() });
 
@@ -19,11 +19,11 @@ export const POST = route<Params<"vendorId">>(async (request, ctx) => {
     throw new ApiError(404, "Vendor(s) not found");
   }
 
-  // The target absorbs the source's aliases and canonical name.
+  // The target absorbs the source's aliases and canonical name (case-insensitively de-duplicated,
+  // the way vendor matching compares names).
   const aliases = [...(target.aliases ?? [])];
-  const targetName = target.canonicalName.toLowerCase();
   for (const alias of [...(source.aliases ?? []), source.canonicalName]) {
-    if (!aliases.includes(alias) && alias.toLowerCase() !== targetName) aliases.push(alias);
+    if (!sameVendorName(alias, target.canonicalName) && !aliases.some((a) => sameVendorName(a, alias))) aliases.push(alias);
   }
 
   const surviving = await db.transaction(async (tx) => {

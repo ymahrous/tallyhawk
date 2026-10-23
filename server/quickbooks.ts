@@ -1,5 +1,6 @@
 import "server-only";
 import { eq } from "drizzle-orm";
+import { parseInvoiceDate } from "./amounts";
 import type { Db } from "./db";
 import { quickbooksConnections } from "./db/schema";
 import { ApiError } from "./http";
@@ -41,12 +42,15 @@ export async function requestQbTokens(params: Record<string, string>): Promise<R
 
 type Connection = typeof quickbooksConnections.$inferSelect;
 
-/** Refreshes an expired access token. An invalid refresh token disconnects and throws 401. */
+/**
+ * Refreshes an expired access token. An invalid refresh token disconnects and throws 400 — not 401,
+ * which the client (rightly) treats as "your Tallyhawk session expired" and signs the user out.
+ */
 export async function refreshQbToken(db: Db, conn: Connection): Promise<Connection> {
   const res = await requestQbTokens({ grant_type: "refresh_token", refresh_token: conn.refreshToken ?? "" });
   if (res.status !== 200) {
     await db.delete(quickbooksConnections).where(eq(quickbooksConnections.id, conn.id));
-    throw new ApiError(401, "QuickBooks connection expired. Please reconnect.");
+    throw new ApiError(400, "QuickBooks connection expired. Please reconnect.");
   }
   const tokens = (await res.json()) as QbTokens;
   const [updated] = await db
@@ -72,9 +76,13 @@ export async function qbFetch(db: Db, conn: Connection, path: string, init: Requ
 
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
-/** YYYY-MM-DD for QuickBooks: passes ISO dates through, parses "Month D, YYYY", else null (QB uses today). */
+/**
+ * YYYY-MM-DD for QuickBooks. Accepts every format the rest of the app understands (parseInvoiceDate)
+ * plus "Month D, YYYY"; anything else (or an impossible date) is null, so QuickBooks uses today.
+ */
 export function toQbDate(raw: string): string | null {
-  if (raw.includes("-") && raw.length === 10) return raw;
+  const parsed = parseInvoiceDate({ date: raw });
+  if (parsed) return parsed.toISOString().slice(0, 10);
   const match = /^([A-Za-z]+) (\d{1,2}), (\d{4})$/.exec(raw.trim());
   if (!match) return null;
   const month = MONTHS.indexOf(match[1].toLowerCase());

@@ -31,10 +31,11 @@ beforeEach(async () => {
 
 describe("signup and login", () => {
   it("signs up and returns a token for the new user", async () => {
-    const res = await call(signup, "POST", "/auth/signup", { body: { username: "new@tallyhawk.com", password: "password123" } });
+    const res = await call(signup, "POST", "/auth/signup", { body: { username: " new@tallyhawk.com ", password: "Password123" } });
     expect(res.status).toBe(201);
     expect(res.json.token_type).toBe("bearer");
-    expect((await decodeAccessToken(res.json.access_token))?.sub).toBe("new@tallyhawk.com");
+    // Same claims as login (regression: the signup token had no plan for the client to seed from).
+    expect(await decodeAccessToken(res.json.access_token)).toMatchObject({ sub: "new@tallyhawk.com", plan: "free" });
 
     const [row] = await db.select().from(users).where(eq(users.username, "new@tallyhawk.com"));
     expect(row.plan).toBe("free");
@@ -43,17 +44,28 @@ describe("signup and login", () => {
   });
 
   it("rejects a duplicate email", async () => {
-    await call(signup, "POST", "/auth/signup", { body: { username: "dup@test.com", password: "password123" } });
-    const res = await call(signup, "POST", "/auth/signup", { body: { username: "dup@test.com", password: "password123" } });
+    await call(signup, "POST", "/auth/signup", { body: { username: "dup@test.com", password: "Password123" } });
+    const res = await call(signup, "POST", "/auth/signup", { body: { username: "dup@test.com", password: "Password123" } });
     expect(res.status).toBe(400);
     expect(res.json.detail).toContain("already registered");
   });
 
   it("validates the body like FastAPI (422)", async () => {
-    const res = await call(signup, "POST", "/auth/signup", { body: { username: "x" } });
+    const res = await call(signup, "POST", "/auth/signup", { body: { username: "x@test.com" } });
     expect(res.status).toBe(422);
     expect(res.json.detail[0].loc).toEqual(["body", "password"]);
     expect((await call(signup, "POST", "/auth/signup", { body: "{not json" })).status).toBe(422);
+  });
+
+  it("enforces the signup form's email and password rules (regression: the API accepted anything)", async () => {
+    const weak = await call(signup, "POST", "/auth/signup", { body: { username: "ok@test.com", password: "password123" } });
+    expect(weak.status).toBe(422);
+    expect(weak.json.detail).toEqual([
+      { loc: ["body", "password"], msg: "Password must contain at least one uppercase letter.", type: "custom" },
+    ]);
+    const notEmail = await call(signup, "POST", "/auth/signup", { body: { username: "not-an-email", password: "Password123" } });
+    expect(notEmail.json.detail[0]).toMatchObject({ loc: ["body", "username"], msg: "Please enter a valid email address." });
+    expect(await db.select().from(users)).toEqual([]);
   });
 
   it("logs in with a token carrying the plan", async () => {
@@ -107,12 +119,19 @@ describe("authentication guard", () => {
 describe("change password", () => {
   it("requires the current password", async () => {
     const { token } = await createUser(db, { password: "old-pass" });
-    const bad = await call(changePassword, "POST", "/auth/change-password", { token, body: { current_password: "nope", new_password: "new-pass" } });
+    const bad = await call(changePassword, "POST", "/auth/change-password", { token, body: { current_password: "nope", new_password: "New-pass1" } });
     expect(bad.status).toBe(400);
 
-    const ok = await call(changePassword, "POST", "/auth/change-password", { token, body: { current_password: "old-pass", new_password: "new-pass" } });
+    const ok = await call(changePassword, "POST", "/auth/change-password", { token, body: { current_password: "old-pass", new_password: "New-pass1" } });
     expect(ok.status).toBe(200);
-    expect((await call(login, "POST", "/auth/login", { body: { username: "ada@example.com", password: "new-pass" } })).status).toBe(200);
+    expect((await call(login, "POST", "/auth/login", { body: { username: "ada@example.com", password: "New-pass1" } })).status).toBe(200);
+  });
+
+  it("applies the password policy to the new password", async () => {
+    const { token } = await createUser(db, { password: "old-pass" });
+    const res = await call(changePassword, "POST", "/auth/change-password", { token, body: { current_password: "old-pass", new_password: "short1A" } });
+    expect(res).toMatchObject({ status: 422, json: { detail: [{ loc: ["body", "new_password"], msg: "Password must be at least 8 characters." }] } });
+    expect((await call(login, "POST", "/auth/login", { body: { username: "ada@example.com", password: "old-pass" } })).status).toBe(200);
   });
 });
 
@@ -164,11 +183,14 @@ describe("password reset", () => {
     expect(link).toMatch(/^http:\/\/localhost:3000\/reset-password\?token=[\w-]{43}$/);
     const token = new URL(link).searchParams.get("token");
 
-    const ok = await call(resetPassword, "POST", "/auth/reset-password", { body: { token, new_password: "brand-new" } });
-    expect(ok.status).toBe(200);
-    expect((await call(login, "POST", "/auth/login", { body: { username: "ada@example.com", password: "brand-new" } })).status).toBe(200);
+    const weak = await call(resetPassword, "POST", "/auth/reset-password", { body: { token, new_password: "brand-new" } });
+    expect(weak.status).toBe(422); // the reset form's policy is enforced here too, and the token stays usable
 
-    const reused = await call(resetPassword, "POST", "/auth/reset-password", { body: { token, new_password: "again" } });
+    const ok = await call(resetPassword, "POST", "/auth/reset-password", { body: { token, new_password: "Brand-new1" } });
+    expect(ok.status).toBe(200);
+    expect((await call(login, "POST", "/auth/login", { body: { username: "ada@example.com", password: "Brand-new1" } })).status).toBe(200);
+
+    const reused = await call(resetPassword, "POST", "/auth/reset-password", { body: { token, new_password: "Again-new1" } });
     expect(reused.json.detail).toBe("Token has already been used.");
   });
 
@@ -182,10 +204,10 @@ describe("password reset", () => {
   it("rejects unknown and expired tokens", async () => {
     const { user } = await createUser(db);
     await db.insert(passwordResetTokens).values({ userId: user.id, token: "expired", expiresAt: new Date(Date.now() - 1000) });
-    expect((await call(resetPassword, "POST", "/auth/reset-password", { body: { token: "nope", new_password: "x" } })).json.detail).toBe(
+    expect((await call(resetPassword, "POST", "/auth/reset-password", { body: { token: "nope", new_password: "Password1" } })).json.detail).toBe(
       "Invalid or expired token."
     );
-    expect((await call(resetPassword, "POST", "/auth/reset-password", { body: { token: "expired", new_password: "x" } })).json.detail).toBe(
+    expect((await call(resetPassword, "POST", "/auth/reset-password", { body: { token: "expired", new_password: "Password1" } })).json.detail).toBe(
       "Token has expired."
     );
   });

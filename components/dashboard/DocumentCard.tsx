@@ -15,10 +15,20 @@ interface DocumentCardProps {
   onDelete: (id: string) => void;
 }
 
+/**
+ * A bare "YYYY-MM-DD" (the invoice date) is a calendar day, but `new Date()` reads it as UTC midnight,
+ * which is the previous day anywhere west of UTC. Build it in local time instead; full timestamps
+ * (upload times) keep their own offset.
+ */
+const parseDate = (dateString: string) => {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+  return day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : new Date(dateString);
+};
+
 const formatThisDate = (dateString: string) => {
   if (!dateString) return "N/A";
-  
-  const date = new Date(dateString);
+
+  const date = parseDate(dateString);
 
   if (isNaN(date.getTime())) return "Invalid Date";
   
@@ -120,7 +130,7 @@ export default function DocumentCard({ doc, ext, qbConnected, isDeleting, onCate
             <p className={`text-[10px] uppercase tracking-wider font-medium mb-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
               Amount
             </p>
-            {ext && ext.original_currency && ext.original_amount !== undefined ? (
+            {ext && ext.original_currency && ext.original_amount != null ? (
               ext.converted_amount != null && ext.converted_currency ? (
                 <>
                   <p className={`text-sm font-semibold ${isDark ? "text-emerald-400" : "text-emerald-600"}`}>

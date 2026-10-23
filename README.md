@@ -2,7 +2,7 @@
 
 # Tallyhawk
 
-**The web client for Tallyhawk, an AI-powered financial document processing platform.**
+**Tallyhawk, an AI-powered financial document processing platform: the web app and its API in one Next.js project.**
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
@@ -17,7 +17,7 @@
 
 ## Overview
 
-This is the Next.js frontend for Tallyhawk, a SaaS platform where solo founders and freelancers upload invoices and receipts to extract structured data, categorize spend, and sync directly to QuickBooks Online.
+Tallyhawk is a SaaS platform where solo founders and freelancers upload invoices and receipts to extract structured data, categorize spend, and sync directly to QuickBooks Online.
 
 This repository is the whole product: the Next.js UI **and** its API. The REST API (formerly a separate FastAPI + Celery service, `tallyhawk-backend`) now runs as Next.js Route Handlers under `app/api/v1`, on the same origin as the pages. AI extraction runs in the background after an upload responds, using Next's `after()` instead of a Celery worker, so there's nothing else to deploy.
 
@@ -26,19 +26,19 @@ This repository is the whole product: the Next.js UI **and** its API. The REST A
 ## Features
 
 ### Core Pipeline
-- **Document dashboard** with drag-and-drop upload, live polling for processing status, and expanding image previews
+- **Document dashboard** with drag-and-drop upload, live polling for processing status, and image thumbnails
 - **QuickBooks Online Sync** — push extracted invoices directly to QBO as categorized Expenses with a single click
 - **Mobile Capture PWA** — snap a photo of a receipt on a desk and push it straight through the processing pipeline
 
 ### Data & Intelligence
-- **Vendor Intelligence** — AI fuzzy-matches raw vendor strings (e.g., "AMZN" → "Amazon"); users can merge and rename vendors while the system keeps historical data perfectly intact
+- **Vendor Intelligence** — fuzzy-matches raw vendor strings against your known vendors and their aliases (≥ 80% similarity, e.g. "AMZN" → "Amazon"); renaming or merging a vendor re-labels its historical documents and keeps the old names as aliases for future matches
 - **AI Tax Categorization** — automatic spend classification (Software, Travel, Meals, etc.) with manual override
 - **Spend Analytics Dashboard** — interactive charts (monthly trend, top vendors, category breakdown) filterable by invoice date and month/year
 - **Multi-Currency Support** — invoices are extracted in their original currency and shown converted into the user's chosen base currency, with the original amount always visible alongside it
 
 ### Account & Billing
-- **Stripe Subscriptions** — free tier (10 docs/month) and Pro tier with checkout sessions and billing portal
-- **Email/password authentication** with JWT bearer tokens, password strength validation, rate-limited login attempts, and a confirm-password flow
+- **Stripe Subscriptions** — free tier (10 docs/month) and a monthly Pro tier via Stripe Checkout; subscription changes and cancellations arrive by webhook
+- **Email/password authentication** with JWT bearer tokens, a password policy enforced by both the forms and the API, a strength meter, a client-side cool-down after repeated failed sign-ins, and a confirm-password flow
 - **Forgot/Reset Password** — secure, expiring token flow with HTML emails via Resend
 - **Account page** for viewing session info, changing password, setting a base currency, managing QuickBooks connection, and exporting tax summaries
 
@@ -91,10 +91,11 @@ Base currency is set from the **Account** page (`app/account/page.tsx`). It's a 
 
 | Surface | Component | Behavior |
 |---|---|---|
-| Document dashboard | `DocumentCard.tsx` | Shows the converted amount in the user's base currency as the primary figure, with the original amount + currency shown as secondary text (e.g. "$108.50 — converted from €100.00") |
+| Document dashboard | `DocumentCard.tsx` | Shows the original and converted amounts side by side with the rate (e.g. "€100.00 → $108.50", "Rate: 1 EUR = 1.0850 USD"), a single figure when no conversion was needed, or the original with "Conversion pending" when no rate was available |
+| Dashboard stats | `app/app/page.tsx` | "This Month" total in the currency the API reports (`base_currency` on `GET /stats/dashboard`), with a count of documents left out because they aren't converted yet |
 | Spend analytics | `app/analytics/page.tsx` | Category, vendor, and monthly-trend charts are labeled and totaled in the base currency |
-| Tax summary export | Account page → "Export tax summary" | CSV download shows both original and converted amounts per line, plus a category summary total in the base currency |
-| Account page | `app/account/page.tsx` | Base currency selector; changing it takes effect for documents processed afterward |
+| Tax summary export | Account page → "Tax Export" | CSV with original and converted amounts per line and per-category totals in the base currency; documents without a current conversion are listed separately instead of being totaled |
+| Account page | `app/account/page.tsx` | Base currency selector; a change saves immediately and re-converts existing documents in the background |
 
 ### Formatting
 
@@ -102,7 +103,11 @@ Amounts are formatted client-side with `Intl.NumberFormat(locale, { style: "curr
 
 ### Changing your base currency
 
-Changing your base currency on the Account page kicks off a background job (`reconvertUserCurrency()` in `server/pipeline.ts`) that re-converts all of your existing documents into the new currency. This settles within a few seconds, but there's no dedicated "reconversion complete" signal yet — documents not yet reconverted are excluded from dashboard/analytics totals (`excluded_from_month_spend` on `GET /api/v1/stats/dashboard`) rather than shown with a stale conversion, so totals may briefly undercount immediately after a currency change.
+Changing your base currency on the Account page kicks off a background job (`reconvertUserCurrency()` in `server/pipeline.ts`) that re-converts all of your existing documents into the new currency. This settles within a few seconds, but there's no dedicated "reconversion complete" signal yet: the dashboard refreshes its stats and documents a few seconds after the change, and documents not yet reconverted are excluded from dashboard, analytics and tax-export totals (`excluded_from_month_spend` on `GET /api/v1/stats/dashboard`) rather than shown with a stale conversion, so totals may briefly undercount immediately after a currency change.
+
+### Which date a document counts under
+
+Analytics, the dashboard's "This Month" figure and the tax export all use the same rule: the invoice date the AI extracted (`YYYY-MM-DD`, `MM/DD/YYYY`, `DD/MM/YYYY` or `YYYY/MM/DD`), or the upload date when there isn't a readable one.
 
 ---
 
@@ -226,7 +231,7 @@ Every push, and every pull request to `main`, runs two jobs:
 1. **verify** — `npm run lint`, `npm run typecheck`, `npm run test:coverage` (fails below the coverage thresholds in `vitest.config.mts`), `npm run build`
 2. **e2e** — installs Chromium and runs `npm run test:e2e`; the HTML report is uploaded as an artifact on failure
 
-See `.github/workflows/ci.yml`. The build step reads `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_S3_BUCKET_URL` from repository secrets. Server secrets are only read at request time, so CI needs none of them; the API tests run on an in-process Postgres.
+See `.github/workflows/ci.yml`. The build step reads `NEXT_PUBLIC_S3_BUCKET_URL` from repository secrets if it's there (the build also works without it). Server secrets are only read at request time, so CI needs none of them; the API tests run on an in-process Postgres.
 
 ---
 
@@ -252,9 +257,9 @@ Uploads are processed after the response with `after()`; the upload route sets `
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_PRO_MONTHLY` | — | Billing |
 | `QB_CLIENT_ID`, `QB_CLIENT_SECRET`, `QB_REDIRECT_URI`, `QB_ENVIRONMENT` | — | QuickBooks sync |
 | `RESEND_API_KEY`, `MAIL_FROM` | — | Password-reset email |
-| `ADMIN_USERNAME`, `PRO_MONTHLY_PRICE_USD` | — | Admin API |
+| `ADMIN_USERNAME`, `PRO_MONTHLY_PRICE_USD` | — | Admin API (the price defaults to the advertised Pro price) |
 | `APP_URL` | — | Public origin for emails/redirects (defaults to the request origin) |
-| `NEXT_PUBLIC_S3_BUCKET_URL` | ✅ | Hostname allowed for document image previews (`next/image`) |
+| `NEXT_PUBLIC_S3_BUCKET_URL` | ✅ | Hostname allowed for document image previews (`next/image`); the build doesn't need it, but previews won't load without it |
 | `NEXT_PUBLIC_SITE_URL` | — | Canonical origin for metadata, sitemap and structured data (defaults to `https://tallyhawk.vercel.app`) |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` / `NEXT_PUBLIC_BING_SITE_VERIFICATION` | — | Search Console / Bing Webmaster verification tokens |
 | `NEXT_PUBLIC_API_URL` | — | Only to point the UI at a different API origin (tests use this) |
@@ -267,7 +272,7 @@ Uploads are processed after the response with `after()`; the upload route sets `
 
 **Auth state** — JWT is stored in `localStorage`. Components that need to react to login/logout state (Navbar, landing page CTA) listen for `storage` events, which `logout()` dispatches manually to support same-tab updates.
 
-**Vendor Normalization** — The raw vendor string from the AI is stored in `extracted_data` for auditing, but the UI and analytics always prefer the normalized `vendor.canonical_name` via the extraction's `vendor_id`. This means renaming or merging a vendor instantly updates all historical documents and charts without mutating historical JSON blobs.
+**Vendor Normalization** — Each extraction links to a vendor via `vendor_id`, and the UI and analytics prefer the normalized `vendor.canonical_name`. Renaming or merging a vendor updates that record, rewrites `extracted_data.vendor` on its linked extractions to the new name (so duplicate detection and exports agree), and keeps the old names as aliases so future uploads still match.
 
 **Currency formatting** — Every amount rendered in the UI carries its own currency code from the API response (original or converted); components never assume `"USD"`. This keeps original-currency figures (e.g. a receipt shown in `EUR`) formatted correctly even when the account's base currency is something else.
 

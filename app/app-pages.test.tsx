@@ -88,6 +88,19 @@ describe("analytics page", () => {
     );
   });
 
+  it("doesn't flash the upsell at a Pro user whose token still says free", async () => {
+    signIn({ plan: "free" });
+    mockApi({
+      ...accountRoutes({ plan: "pro" }),
+      "GET /analytics/spend-by-category": { json: [] },
+      "GET /analytics/spend-by-vendor": { json: [] },
+      "GET /analytics/monthly-trend": { json: [] },
+    });
+    renderWithProviders(<AnalyticsPage />);
+    expect(screen.queryByRole("heading", { name: "Upgrade to Pro" })).toBeNull();
+    expect(await screen.findByRole("heading", { level: 1, name: "Analytics" })).toBeInTheDocument();
+  });
+
   it("shows empty states when there is no data for the period", async () => {
     as("pro", {
       "GET /analytics/spend-by-category": { json: [] },
@@ -110,6 +123,36 @@ describe("vendors page", () => {
     mockApi();
     renderWithProviders(<VendorsPage />);
     expect(router.push).toHaveBeenCalledWith("/login");
+  });
+
+  it("redirects an expired session without calling the API", () => {
+    signInExpired();
+    const server = mockApi();
+    renderWithProviders(<VendorsPage />);
+    expect(router.push).toHaveBeenCalledWith("/login");
+    expect(server.requests).toHaveLength(0);
+  });
+
+  it("explains a rejected rename or merge instead of silently doing nothing", async () => {
+    as("free", {
+      "GET /vendors": { json: vendors },
+      "PATCH /vendors/v2/rename": {
+        status: 400,
+        json: { detail: "Another vendor already has that name. Merge the two vendors instead." },
+      },
+      "POST /vendors/v1/merge": { status: 404, json: { detail: "Vendor(s) not found" } },
+    });
+    vi.spyOn(window, "prompt").mockReturnValue("Amazon");
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderWithProviders(<VendorsPage />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Figma" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Another vendor already has that name.");
+
+    const amazonRow = screen.getByRole("button", { name: "Amazon" }).closest("div.rounded-2xl") as HTMLElement;
+    await userEvent.click(within(amazonRow).getByRole("button", { name: "Merge Into..." }));
+    await userEvent.selectOptions(within(amazonRow).getByRole("combobox"), "v2");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Vendor(s) not found");
   });
 
   it("lists vendors with their aliases", async () => {
@@ -201,6 +244,11 @@ describe("account page", () => {
     renderWithProviders(<AccountPage />);
 
     expect(await screen.findByDisplayValue("ada@example.com")).toBeDisabled();
+    // When the account was created (settings.created_at), not when this token was issued.
+    expect(await screen.findByLabelText("Member Since")).toHaveValue(
+      new Date("2026-01-01T00:00:00Z").toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+    );
+    expect(screen.getByText("10 documents / month")).toBeInTheDocument();
     expect(screen.getByText("Free Tier")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Tax Export" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Upgrade" }));
@@ -221,12 +269,27 @@ describe("account page", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent("Currency updated!");
     expect(server.callsTo("PATCH /auth/settings")[0].body).toEqual({ base_currency: "EUR" });
+    // The select saves on change; a second "Save" re-sent the same currency and claimed a reconversion.
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  });
+
+  it("shows when the session expires under that label (regression: it was labelled 'Session Started')", async () => {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    signIn({ exp });
+    mockApi({ ...accountRoutes(), "GET /quickbooks/status": { json: { connected: false } } });
+    renderWithProviders(<AccountPage />);
+    expect(await screen.findByLabelText("Session Expires")).toHaveValue(new Date(exp * 1000).toLocaleString());
+    expect(screen.queryByLabelText("Session Started")).toBeNull();
   });
 
   it("reports a failed currency change", async () => {
     as("free", {
       "GET /quickbooks/status": { json: { connected: false } },
-      "PATCH /auth/settings": { status: 422, json: { detail: "Unsupported currency" } },
+      // The API's real 422 shape: a list of issues (regression: rendered as "[object Object]").
+      "PATCH /auth/settings": {
+        status: 422,
+        json: { detail: [{ loc: ["body", "base_currency"], msg: "Unsupported currency", type: "custom" }] },
+      },
     });
     renderWithProviders(<AccountPage />);
     await userEvent.selectOptions(

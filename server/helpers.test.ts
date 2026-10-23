@@ -106,6 +106,11 @@ describe("QuickBooks helpers", () => {
   it("normalises dates to YYYY-MM-DD or leaves them for QB to default", () => {
     expect(toQbDate("2026-03-05")).toBe("2026-03-05");
     expect(toQbDate("March 5, 2026")).toBe("2026-03-05");
+    // Same formats as analytics and the tax export (regression: only "YYYY-MM-DD"-shaped strings passed).
+    expect(toQbDate("03/05/2026")).toBe("2026-03-05");
+    expect(toQbDate("2026-3-5")).toBe("2026-03-05");
+    expect(toQbDate("2026-02-30")).toBeNull();
+    expect(toQbDate("05-03-2026")).toBeNull();
     expect(toQbDate("Smarch 5, 2026")).toBeNull();
     expect(toQbDate("February 30, 2026")).toBeNull();
     expect(toQbDate("")).toBeNull();

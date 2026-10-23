@@ -12,7 +12,7 @@ export const POST = route(async (request) => {
       line_items: [{ price: process.env.STRIPE_PRICE_ID_PRO_MONTHLY, quantity: 1 }],
       client_reference_id: user.id,
       success_url: `${origin}/billing/success`,
-      cancel_url: `${origin}/pricing`,
+      cancel_url: `${origin}/billing/cancelled`,
     });
     return json({ url: session.url });
   } catch (error) {

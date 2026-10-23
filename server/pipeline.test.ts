@@ -115,6 +115,18 @@ describe("processDocument", () => {
     expect((await db.select().from(documents).where(eq(documents.id, doc.id)))[0].flags).toBeNull();
   });
 
+  it("never matches documents without a vendor (regression: '' is contained in every name)", async () => {
+    const { user } = await createUser(db);
+    for (const amount of [54.99, 10, 12]) {
+      await createDocument(db, { ownerId: user.id, extraction: { extractedData: { vendor: "" }, convertedAmount: amount, convertedCurrency: "USD" } });
+    }
+    const doc = await pendingDoc(user.id);
+    extracted({ vendor: "Adobe", total_amount: "$54.99", currency: "USD" });
+
+    await processDocument(doc.id);
+    expect((await db.select().from(documents).where(eq(documents.id, doc.id)))[0].flags).toBeNull();
+  });
+
   it("flags a price anomaly above 3× the vendor's average", async () => {
     const { user } = await createUser(db);
     for (const amount of [10, 12]) {

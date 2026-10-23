@@ -33,6 +33,7 @@ export const GET = route(async (request) => {
     processed,
     synced,
     month_spend: Math.round(monthSpend * 100) / 100,
+    base_currency: user.baseCurrency, // what month_spend is denominated in
     excluded_from_month_spend: excluded, // docs skipped: wrong/stale currency data
   });
 });

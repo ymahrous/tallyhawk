@@ -87,6 +87,7 @@ describe("admin reports", () => {
     expect(all.json.results.find((u: { username: string }) => u.username === "ada@example.com").document_count).toBe(2);
 
     const pro = await call(listUsers, "GET", "/admin/users?plan=pro&limit=1", { token: adminToken });
+    expect(pro.json.total).toBe(1); // regression: total ignored the plan filter
     expect(pro.json.results).toHaveLength(1);
     expect(pro.json.results[0]).toMatchObject({ username: "ada@example.com", plan: "pro", document_count: 2 });
     expect((await call(listUsers, "GET", "/admin/users?limit=500", { token: adminToken })).status).toBe(422);

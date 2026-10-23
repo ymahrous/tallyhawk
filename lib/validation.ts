@@ -7,7 +7,7 @@ export function validateEmail(value: string): string {
   return "";
 }
 
-/** Mirrors the backend's password policy. Returns an error message, or "" when the password is acceptable. */
+/** The password policy, enforced by the forms and again by the API (server/auth.ts). Returns an error message, or "" when the password is acceptable. */
 export function validatePassword(value: string): string {
   if (value.length < 8) return "Password must be at least 8 characters.";
   if (!/[A-Z]/.test(value)) return "Password must contain at least one uppercase letter.";

@@ -123,7 +123,7 @@ export const PRODUCT_FAQ: readonly FaqItem[] = [
   {
     question: "How does Tallyhawk extract data from receipts and invoices?",
     answer:
-      "Each upload is queued and processed in the background by a large language model (Google Gemini). It reads the document, returns the vendor, total, date, currency and a suggested category, and normalizes messy vendor strings — for example “AMZN Mktp” becomes “Amazon”. The dashboard updates automatically when processing finishes.",
+      "Each upload is processed in the background, right after it's received, by a large language model (Google Gemini). It reads the document, returns the vendor, total, date, currency and a suggested category, and normalizes messy vendor strings — for example “AMZN Mktp” becomes “Amazon”. The dashboard updates automatically when processing finishes.",
   },
   {
     question: "Does Tallyhawk work with QuickBooks Online?",
@@ -145,7 +145,7 @@ export const PRODUCT_FAQ: readonly FaqItem[] = [
   },
   {
     question: "Is there a free plan?",
-    answer: `Yes. The Free plan includes ${freeDocumentsPerMonth} documents per month with AI extraction, the document dashboard and mobile capture — no credit card required. Pro costs $${proPriceUsd} per month and adds unlimited documents, QuickBooks Online sync, tax categorization with CSV export, spend analytics and priority processing.`,
+    answer: `Yes. The Free plan includes ${freeDocumentsPerMonth} documents per month with AI extraction, the document dashboard and mobile capture — no credit card required. Pro costs $${proPriceUsd} per month and adds unlimited documents, QuickBooks Online sync, tax categorization with CSV export and spend analytics.`,
   },
   {
     question: "Does Tallyhawk replace my accountant?",
@@ -162,7 +162,7 @@ export const PRODUCT_FAQ: readonly FaqItem[] = [
 export const PRICING_FAQ: readonly FaqItem[] = [
   {
     question: "How much does Tallyhawk cost?",
-    answer: `Tallyhawk has two plans. Free costs $0 and includes ${freeDocumentsPerMonth} documents per month. Pro costs $${proPriceUsd} per month (USD) and includes unlimited documents, QuickBooks Online sync, tax categorization and CSV export, spend analytics and priority processing.`,
+    answer: `Tallyhawk has two plans. Free costs $0 and includes ${freeDocumentsPerMonth} documents per month. Pro costs $${proPriceUsd} per month (USD) and includes unlimited documents, QuickBooks Online sync, tax categorization and CSV export, and spend analytics.`,
   },
   {
     question: "Do I need a credit card to start?",

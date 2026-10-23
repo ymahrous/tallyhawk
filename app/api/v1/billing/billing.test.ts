@@ -80,7 +80,7 @@ describe("checkout", () => {
         line_items: [{ price: "price_pro", quantity: 1 }],
         client_reference_id: user.id,
         success_url: "http://localhost:3000/billing/success",
-        cancel_url: "http://localhost:3000/pricing",
+        cancel_url: "http://localhost:3000/billing/cancelled",
       })
     );
   });

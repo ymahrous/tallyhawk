@@ -2,6 +2,8 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+import { z } from "zod";
+import { validateEmail, validatePassword } from "@/lib/validation";
 
 // Same primitives as the former Python backend (bcrypt hashes, HS256 JWTs signed with SECRET_KEY),
 // so existing password hashes and still-valid tokens keep working after the move.
@@ -22,6 +24,20 @@ export function verifyPassword(plain: string, hashed: string): Promise<boolean> 
 export function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, Number(process.env.BCRYPT_ROUNDS) || 12);
 }
+
+/** Turns one of lib/validation's "message or empty string" checks into a zod refinement. */
+function check(validate: (value: string) => string) {
+  return (value: string, ctx: z.RefinementCtx) => {
+    const message = validate(value);
+    if (message) ctx.addIssue({ code: "custom", message });
+  };
+}
+
+/** A password being set (signup, change, reset): the same policy the forms enforce. */
+export const newPassword = z.string().superRefine(check(validatePassword));
+
+/** A new account's username: the email address password-reset links are sent to. */
+export const emailAddress = z.string().trim().superRefine(check(validateEmail));
 
 export interface TokenClaims {
   sub: string;

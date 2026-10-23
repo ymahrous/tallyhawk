@@ -189,6 +189,20 @@ describe("DocumentCard dates, previews and actions", () => {
     expect(screen.getByText("March 4, 2025")).toBeInTheDocument();
   });
 
+  it("shows an invoice date as the calendar day it names, in any timezone (regression: a day early west of UTC)", () => {
+    // Parsed as UTC midnight, "2026-01-14" is still January 13th in the Americas. Node applies a
+    // runtime TZ change to Date and Intl immediately.
+    const tz = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      render(<DocumentCard doc={doc} ext={baseExtraction()} qbConnected={false} isDeleting={false} onCategoryUpdate={noop} onDelete={noop} />);
+      expect(screen.getByText("January 14, 2026")).toBeInTheDocument();
+    } finally {
+      if (tz === undefined) delete process.env.TZ;
+      else process.env.TZ = tz;
+    }
+  });
+
   it("previews image documents and falls back to an icon for PDFs", () => {
     const { container } = render(
       <DocumentCard doc={{ ...doc, filename: "receipt.jpg", s3_url: "https://bucket.test/receipt.jpg" }} ext={undefined} qbConnected={false} isDeleting={false} onCategoryUpdate={noop} onDelete={noop} />

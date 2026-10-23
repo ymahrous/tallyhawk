@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { API_URL, exportTaxSummary } from "@/lib/api";
+import { changePassword, deleteAccount, exportTaxSummary } from "@/lib/api";
 import { usePlan } from "../providers/PlanContext";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { useSettings } from "@/app/providers/SettingsContext";
@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getQuickBooksConnectUrl, getQuickBooksStatus } from "@/lib/api";
 import { logout, decodeToken, isTokenExpired, disconnectQuickBooks } from "@/lib/api";
 import { SUPPORTED_CURRENCIES, CurrencyCode } from "@/lib/currency";
+import { PRODUCT_FACTS } from "@/lib/site";
 import { validatePassword } from "@/lib/validation";
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -137,7 +138,6 @@ export default function AccountPage() {
   // ── Auth guard ──
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accountEmail, setAccountEmail] = useState("");
-  const [memberSince, setMemberSince] = useState("");
   const [sessionExpiry, setSessionExpiry] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -155,7 +155,12 @@ export default function AccountPage() {
   const [currencySuccess, setCurrencySuccess] = useState("");
   const [isUpdatingCurrency, setIsUpdatingCurrency] = useState(false);
 
-  const { baseCurrency, updateBaseCurrency } = useSettings();
+  const { baseCurrency, createdAt, updateBaseCurrency } = useSettings();
+  // From the account itself (GET /auth/settings), not the session token: a token's issue time is
+  // when you last signed in, not when you joined.
+  const memberSince = createdAt
+    ? new Date(createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+    : "";
 
   const primaryBtnClass = isDark
     ? "bg-white text-black hover:bg-white/80"
@@ -170,35 +175,6 @@ export default function AccountPage() {
     }
     setIsExporting(false);
   };
-
-  useEffect(() => {
-    if (isTokenExpired()) {
-      router.push("/login");
-      return;
-    }
-
-    const payload = decodeToken();
-    if (!payload) {
-      router.push("/login");
-      return;
-    }
-
-    setIsAuthenticated(true);
-    setAccountEmail(payload.sub);
-
-    // Format session expiry
-    const iat = (payload as { sub: string; exp: number; iat?: number }).iat;
-
-    if (iat) {
-    setMemberSince(new Date(iat * 1000).toLocaleDateString("en-US", {
-        year: "numeric", month: "long", day: "numeric",
-    }));
-    }
-
-    const expDate = new Date(payload.exp * 1000);
-    setSessionExpiry(expDate.toLocaleString());
-
-  }, [router]);
 
   // ── Password change ──
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -218,24 +194,7 @@ export default function AccountPage() {
 
     setIsChangingPassword(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/auth/change-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          current_password: currentPassword,
-          new_password: newPassword,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || "Failed to change password.");
-      }
-
+      await changePassword(currentPassword, newPassword);
       setPasswordSuccess("Password updated successfully.");
       setCurrentPassword("");
       setNewPassword("");
@@ -261,7 +220,7 @@ export default function AccountPage() {
     }
   };
 
-  // quickbooks integration status check
+  // Auth guard, session details and QuickBooks status
   useEffect(() => {
     if (isTokenExpired()) { router.push("/login"); return; }
     const payload = decodeToken();
@@ -269,13 +228,7 @@ export default function AccountPage() {
 
     setIsAuthenticated(true);
     setAccountEmail(payload.sub);
-
-    const iat = (payload as { sub: string; exp: number; iat?: number }).iat;
-    if (iat) {
-      setMemberSince(new Date(iat * 1000).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }));
-    }
-    const expDate = new Date(payload.exp * 1000);
-    setSessionExpiry(expDate.toLocaleString());
+    setSessionExpiry(new Date(payload.exp * 1000).toLocaleString());
 
     // Fetch QuickBooks Status
     const fetchQbStatus = async () => {
@@ -321,17 +274,7 @@ export default function AccountPage() {
     setIsDeletingAccount(true);
     setDeleteError("");
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/auth/delete`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || "Failed to delete account.");
-      }
-
+      await deleteAccount();
       logout();
       router.push("/");
     } catch (err: unknown) {
@@ -418,7 +361,7 @@ export default function AccountPage() {
                   {currentPlan === "pro" ? "Tallyhawk Pro" : "Free Tier"}
                 </p>
                 <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                  {currentPlan === "pro" ? "Unlimited documents & integrations" : "10 documents / month"}
+                  {currentPlan === "pro" ? "Unlimited documents & integrations" : `${PRODUCT_FACTS.freeDocumentsPerMonth} documents / month`}
                 </p>
               </div>
             </div>
@@ -494,7 +437,7 @@ export default function AccountPage() {
         {/* Currency Settings */}
         <SectionCard
           title="Base Currency"
-          description="All amounts will be converted to this currency for reporting. New documents use this currency for conversion."
+          description="Amounts are converted into this currency for totals, analytics and tax exports. Changing it saves immediately and re-converts your existing documents."
           isDark={isDark}
         >
           <div className="flex items-center gap-4">
@@ -513,13 +456,9 @@ export default function AccountPage() {
                 </option>
               ))}
             </select>
-            <button
-              onClick={() => handleCurrencyChange(baseCurrency)}
-              disabled={isUpdatingCurrency}
-              className={`${primaryBtnClass} text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap`}
-            >
-              {isUpdatingCurrency ? "Saving..." : "Save"}
-            </button>
+            {isUpdatingCurrency && (
+              <span className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>Saving…</span>
+            )}
             {currencySuccess && (
               <span role="status" className="text-sm text-emerald-500">{currencySuccess}</span>
             )}
@@ -608,7 +547,7 @@ export default function AccountPage() {
         >
           <div className="space-y-4">
             <InputField
-                label="Session Started"
+                label="Session Expires"
                 value={sessionExpiry}
                 disabled
                 isDark={isDark}

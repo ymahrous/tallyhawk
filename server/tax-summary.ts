@@ -1,6 +1,6 @@
 import "server-only";
 import { and, eq, isNotNull } from "drizzle-orm";
-import { parseAmountOr } from "./amounts";
+import { effectiveDate, parseAmountOr, reliableAmount } from "./amounts";
 import type { Db } from "./db";
 import { documents, extractions } from "./db/schema";
 
@@ -18,12 +18,6 @@ export function money(value: number): string {
   return value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/** Strict int() of the year part of a YYYY-MM-DD date, or null. */
-function yearOf(rawDate: string): number | null {
-  const part = rawDate.split("-")[0].trim();
-  return /^[+-]?\d+$/.test(part) ? Number(part) : null;
-}
-
 interface DetailRow {
   date: string;
   vendor: string;
@@ -36,14 +30,15 @@ interface DetailRow {
 
 /**
  * Builds the yearly tax-summary CSV: one row per categorised, completed document (each with its own
- * original currency), then totals per category in the user's base currency. Rows whose converted
- * amount isn't in the current base currency (legacy or stale after a currency change) are listed
- * separately and excluded from the totals instead of being mislabelled.
+ * original currency), then totals per category in the user's base currency. A document belongs to
+ * the year of its invoice date, else its upload date — the same rule as analytics and the dashboard.
+ * Rows without a conversion into the current base currency (legacy, no rate available yet, or stale
+ * after a currency change) are listed separately and excluded from the totals, never mislabelled.
  */
 export async function buildTaxSummaryCsv(db: Db, user: { id: string; baseCurrency: string }, year: number): Promise<string> {
   const base = user.baseCurrency;
   const rows = await db
-    .select({ ext: extractions })
+    .select({ ext: extractions, uploadedAt: documents.createdAt })
     .from(documents)
     .innerJoin(extractions, eq(documents.id, extractions.documentId))
     .where(and(eq(documents.ownerId, user.id), eq(documents.status, "COMPLETED"), isNotNull(extractions.category)));
@@ -52,21 +47,22 @@ export async function buildTaxSummaryCsv(db: Db, user: { id: string; baseCurrenc
   const details: DetailRow[] = [];
   const needsReconversion: DetailRow[] = [];
 
-  for (const { ext } of rows) {
+  for (const { ext, uploadedAt } of rows) {
     const data = ext.extractedData ?? {};
-    const rawDate = String(data.date ?? "");
-    if (yearOf(rawDate) !== year) continue;
+    const date = effectiveDate(data, uploadedAt);
+    if (date.getUTCFullYear() !== year) continue;
 
-    const stale = ext.convertedAmount !== null && ext.convertedCurrency !== null && ext.convertedCurrency !== base;
+    const convertedAmount = reliableAmount(ext, base);
     const row: DetailRow = {
-      date: rawDate,
+      date: date.toISOString().slice(0, 10),
       vendor: String(data.vendor ?? ""),
       category: ext.category!,
       originalAmount: ext.originalAmount ?? parseAmountOr(data.total_amount),
       originalCurrency: ext.originalCurrency || base,
-      // No valid base-currency figure for legacy/stale rows: never fabricate one from the raw total.
-      convertedAmount: stale ? null : ext.convertedAmount,
-      exchangeRate: ext.exchangeRate,
+      // No valid base-currency figure for these rows: never fabricate one from the raw total, and
+      // don't print a rate that converts into some other currency.
+      convertedAmount,
+      exchangeRate: convertedAmount !== null ? ext.exchangeRate : null,
     };
 
     if (row.convertedAmount === null) needsReconversion.push(row);
@@ -74,10 +70,11 @@ export async function buildTaxSummaryCsv(db: Db, user: { id: string; baseCurrenc
     details.push(row);
   }
 
+  const byDate = (a: DetailRow, b: DetailRow) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
   const out: (string | number)[][] = [
     ["Date", "Vendor", "Category", "Original Amount", "Original Currency", `Converted Amount (${base})`, "Exchange Rate"],
   ];
-  for (const r of [...details].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))) {
+  for (const r of details.sort(byDate)) {
     out.push([
       r.date,
       r.vendor,
@@ -96,10 +93,10 @@ export async function buildTaxSummaryCsv(db: Db, user: { id: string; baseCurrenc
     out.push(
       [],
       [`NOTE: ${needsReconversion.length} document(s) excluded from the summary above`],
-      ["because your base currency changed after they were processed."],
+      [`because they have no up-to-date conversion into ${base} yet (no exchange rate was available, or your base currency changed after they were processed).`],
       ["Date", "Vendor", "Original Amount", "Original Currency"]
     );
-    for (const r of needsReconversion) out.push([r.date, r.vendor, money(r.originalAmount), r.originalCurrency]);
+    for (const r of needsReconversion.sort(byDate)) out.push([r.date, r.vendor, money(r.originalAmount), r.originalCurrency]);
   }
 
   return toCsv(out);

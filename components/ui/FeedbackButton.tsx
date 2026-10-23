@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTheme } from "@/app/providers/ThemeContext";
-import { API_URL } from "@/lib/api";
+import { sendFeedback } from "@/lib/api";
 const feedbackTypes = ["Suggestion", "Bug", "Other"];
 const ChatIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,12 +36,7 @@ export default function FeedbackButton() {
     setIsSending(true);
 
     try {
-      const res = await fetch(`${API_URL}/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: activeType, message: sanitizedText }),
-      });
-      if (!res.ok) throw new Error(`Feedback request failed with ${res.status}`);
+      await sendFeedback(activeType, sanitizedText);
 
       setIsSent(true);
       setTimeout(() => {

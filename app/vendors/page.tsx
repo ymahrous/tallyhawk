@@ -1,91 +1,56 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/app/providers/ThemeContext";
-import { API_URL } from "@/lib/api";
+import { getVendors, isTokenExpired, mergeVendors, renameVendor, type VendorData } from "@/lib/api";
 import { useRouter } from "next/navigation";
-
-type Vendor = {
-  id: string;
-  canonical_name: string;
-  aliases: string[];
-};
 
 export default function VendorsPage() {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  
-  const [token, setToken] = useState<string | null>(null);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+
+  const [vendors, setVendors] = useState<VendorData[]>([]);
   const [loading, setLoading] = useState(true);
   const [mergeSource, setMergeSource] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [error, setError] = useState("");
 
-
-  // 1. Ensure component is mounted (prevents localStorage SSR crash)
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // 2. Safe localStorage check
-  useEffect(() => {
-    if (!isMounted) return;
-
-    const userToken = localStorage.getItem("token");
-    if (!userToken) {
-      router.push("/login");
-      return;
-    }
-    setToken(userToken);
-  }, [isMounted, router]);
-
-  const fetchVendors = async (userToken: string) => {
+  const fetchVendors = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/vendors`, {
-        headers: { Authorization: `Bearer ${userToken}` },
-      });
-      
-      if (res.status === 401) {
+      setVendors(await getVendors());
+    } catch (err) {
+      // authFetch has already cleared an expired session; send the user to sign in again.
+      if (err instanceof Error && err.message === "Session expired") {
         router.push("/login");
         return;
       }
-      
-      if (!res.ok) {
-        throw new Error("Failed to fetch vendors");
-      }
-
-      const data = await res.json();
-      setVendors(data);
-    } catch (err) {
-      console.error("Failed to fetch vendors", err);
+      setError("Couldn't load your vendors. Please refresh the page.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
-  // 3. Fetch data when token is ready
+  // Auth guard (localStorage is only readable after mount), then load.
   useEffect(() => {
-    if (token) fetchVendors(token);
-  }, [token]);
+    setIsMounted(true);
+    if (isTokenExpired()) {
+      router.push("/login");
+      return;
+    }
+    fetchVendors();
+  }, [router, fetchVendors]);
 
   const handleRename = async (vendorId: string, currentName: string) => {
     const newName = prompt("Enter new vendor name:", currentName);
     if (!newName || newName.trim() === "" || newName.trim() === currentName) return;
 
+    setError("");
     try {
-      const res = await fetch(`${API_URL}/vendors/${vendorId}/rename`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ new_name: newName.trim() }),
-      });
-
-      if (res.ok && token) fetchVendors(token);
+      await renameVendor(vendorId, newName.trim());
+      await fetchVendors();
     } catch (err) {
-      console.error("Rename failed", err);
+      setError(err instanceof Error ? err.message : "Failed to rename vendor");
     }
   };
 
@@ -93,22 +58,13 @@ export default function VendorsPage() {
     if (sourceId === targetId) return alert("Cannot merge a vendor into itself.");
     if (!confirm("Merge this vendor? All documents will be re-assigned to the target vendor.")) return;
 
+    setError("");
     try {
-      const res = await fetch(`${API_URL}/vendors/${sourceId}/merge`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ target_vendor_id: targetId }),
-      });
-
-      if (res.ok && token) {
-        setMergeSource(null);
-        fetchVendors(token);
-      }
+      await mergeVendors(sourceId, targetId);
+      setMergeSource(null);
+      await fetchVendors();
     } catch (err) {
-      console.error("Merge failed", err);
+      setError(err instanceof Error ? err.message : "Failed to merge vendors");
     }
   };
 
@@ -137,6 +93,12 @@ export default function VendorsPage() {
             Manage and merge your vendors so your analytics are accurate. If two vendors are the same company, select &quot;Merge Into&quot; to combine them.
           </p>
         </div>
+
+        {error && (
+          <p role="alert" className="mb-6 text-sm text-red-500 bg-red-500/10 px-4 py-3 rounded-xl">
+            {error}
+          </p>
+        )}
 
         {vendors.length === 0 ? (
           <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>No vendors found. They will appear here once you process documents.</p>

@@ -3,13 +3,14 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import { getDb } from "@/server/db";
 import { documents, extractions, feedback, quickbooksConnections, subscriptions, users, vendors } from "@/server/db/schema";
 import { getCurrentAdmin, json, route } from "@/server/http";
+import { PRODUCT_FACTS } from "@/lib/site";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const GET = route(async (request) => {
   await getCurrentAdmin(request);
   const db = getDb();
-  const pricePerSeat = Number(process.env.PRO_MONTHLY_PRICE_USD ?? "5");
+  const pricePerSeat = Number(process.env.PRO_MONTHLY_PRICE_USD || PRODUCT_FACTS.proPriceUsd);
 
   const countOf = async (table: PgTable, where?: SQL) => {
     const [row] = await db.select({ n: count() }).from(table).where(where);

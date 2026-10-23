@@ -5,7 +5,7 @@ import { ApiError, getCurrentUser, json, route } from "@/server/http";
 import { processDocument } from "@/server/pipeline";
 import { uploadToStorage } from "@/server/storage";
 import { documentsProcessedThisMonth, FREE_TIER_LIMIT, incrementUsage } from "@/server/usage";
-import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "@/lib/uploads";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, validateUploadFile } from "@/lib/uploads";
 
 // AI extraction runs after the response (see server/background.ts) and typically takes 10–30s.
 export const maxDuration = 60;
@@ -31,6 +31,9 @@ export const POST = route(async (request) => {
     throw new ApiError(422, [{ loc: ["body", "file"], msg: "Field required", type: "missing" }]);
   }
   if (file.size > MAX_UPLOAD_BYTES) throw new ApiError(413, `File too large. Maximum size is ${MAX_UPLOAD_MB}MB.`);
+  // The same extension/MIME rules the upload forms check before sending (lib/uploads.ts).
+  const invalid = validateUploadFile(file);
+  if (invalid) throw new ApiError(400, invalid);
 
   const bytes = new Uint8Array(await file.arrayBuffer());
   const publicUrl = await uploadToStorage(bytes, file.name);
@@ -40,8 +43,8 @@ export const POST = route(async (request) => {
     .values({ filename: file.name, s3Url: publicUrl, status: "PENDING", ownerId: user.id })
     .returning();
 
-  runInBackground("process_document", () => processDocument(doc.id));
   await incrementUsage(user.id);
+  runInBackground("process_document", () => processDocument(doc.id));
 
   return json({ message: "Document received!", document_id: doc.id, status: doc.status });
 });

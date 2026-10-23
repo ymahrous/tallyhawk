@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { parseAmountOr } from "@/server/amounts";
+import { parseAmountOr, reliableAmount } from "@/server/amounts";
 import { getDb } from "@/server/db";
 import { documents, extractions, quickbooksConnections } from "@/server/db/schema";
 import { ApiError, getCurrentUser, json, requirePro, route, type Params } from "@/server/http";
@@ -28,10 +28,10 @@ export const POST = route<Params<"documentId">>(async (request, ctx) => {
   const data = extraction.extractedData ?? {};
 
   // Use the base-currency amount when it's genuinely in the current base currency; otherwise fall
-  // back to the raw extracted amount, labelled with its own currency rather than mislabelled.
-  const reliable = extraction.convertedAmount !== null && extraction.convertedCurrency === user.baseCurrency;
-  const total = reliable ? extraction.convertedAmount! : parseAmountOr(data.total_amount);
-  const currency = reliable ? extraction.convertedCurrency! : extraction.originalCurrency || user.baseCurrency;
+  // back to the original amount, labelled with its own currency rather than mislabelled.
+  const converted = reliableAmount(extraction, user.baseCurrency);
+  const total = converted ?? extraction.originalAmount ?? parseAmountOr(data.total_amount);
+  const currency = converted !== null ? user.baseCurrency : extraction.originalCurrency || user.baseCurrency;
 
   const paymentType = /mastercard|visa|credit card|amex/.test(JSON.stringify(data).toLowerCase()) ? "CreditCard" : "Cash";
   const txnDate = toQbDate(String(data.date ?? ""));
