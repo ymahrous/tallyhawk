@@ -1,10 +1,11 @@
 import "server-only";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql, sum } from "drizzle-orm";
 import { checkCredentials, createSessionToken, generatePasswordResetToken, hashResetToken } from "./auth";
-import { cancelBillableSubscription } from "./billing";
-import type { Db } from "./db";
+import { cancelBillableSubscription, subscriptionOf } from "./billing";
+import type { Db, Executor } from "./db";
 import {
   contactMessages,
+  deletedAccounts,
   documents,
   extractions,
   feedback,
@@ -91,13 +92,50 @@ export async function sendPasswordReset(db: Db, request: Request, account: Pick<
   if (process.env.NODE_ENV !== "production") console.info(`Password reset link for ${account.username}: ${resetUrl}`);
 }
 
+/** Who deleted an account: the person themselves, or an admin. */
+export type DeletedBy = { by: "self" } | { by: "admin"; admin: Pick<User, "id" | "username"> };
+
+interface BillingAtDeletion {
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  subscriptionStatusAtDeletion?: string | null;
+  subscriptionStatus?: string | null;
+  currentPeriodEnd?: Date | null;
+  billingCancelledAt?: Date | null;
+}
+
 /**
- * Permanently deletes an account and everything it owns. Order matters: the Stripe subscription is
- * cancelled first (so a deleted customer is never billed again), then the files (if storage fails,
- * nothing has been removed yet), then every row in one transaction.
+ * Writes the record that outlives a deleted account (see `deletedaccount` in the schema). Call it in
+ * the same transaction that deletes the account, so there is never a deletion without a record.
  */
-export async function deleteAccount(db: Db, account: Pick<User, "id">): Promise<void> {
-  await cancelBillableSubscription(db, account.id);
+export async function recordDeletion(
+  tx: Executor,
+  account: Pick<User, "id" | "username" | "role" | "plan" | "createdAt">,
+  deletedBy: DeletedBy,
+  details: BillingAtDeletion & { lifetimeDocuments?: number } = {}
+): Promise<void> {
+  await tx.insert(deletedAccounts).values({
+    userId: account.id,
+    username: account.username,
+    role: account.role,
+    plan: account.role === "user" ? account.plan : null,
+    accountCreatedAt: account.createdAt,
+    deletedBy: deletedBy.by,
+    deletedByAdminId: deletedBy.by === "admin" ? deletedBy.admin.id : null,
+    deletedByAdminUsername: deletedBy.by === "admin" ? deletedBy.admin.username : null,
+    ...details,
+  });
+}
+
+/**
+ * Permanently deletes a customer account and everything it owns, keeping only its deletion record.
+ * Order matters: the Stripe subscription is cancelled first (so a deleted customer is never billed
+ * again), then the files (if storage fails, nothing has been removed yet), then every row and the
+ * deletion record in one transaction.
+ */
+export async function deleteAccount(db: Db, account: User, deletedBy: DeletedBy): Promise<void> {
+  const subscription = await subscriptionOf(db, account.id);
+  const cancellation = await cancelBillableSubscription(subscription);
 
   const docs = await db
     .select({ id: documents.id, filename: documents.filename, storagePath: documents.storagePath })
@@ -105,7 +143,19 @@ export async function deleteAccount(db: Db, account: Pick<User, "id">): Promise<
     .where(eq(documents.ownerId, account.id));
   for (const doc of docs) await deleteFromStorage(doc.storagePath ?? doc.filename);
 
+  const [usage] = await db.select({ total: sum(usageRecords.documentsProcessed) }).from(usageRecords).where(eq(usageRecords.userId, account.id));
+  const stopped = cancellation !== "not_billable";
+
   await db.transaction(async (tx) => {
+    await recordDeletion(tx, account, deletedBy, {
+      lifetimeDocuments: Number(usage?.total ?? 0),
+      stripeCustomerId: subscription?.stripeCustomerId ?? null,
+      stripeSubscriptionId: subscription?.stripeSubscriptionId ?? null,
+      subscriptionStatusAtDeletion: subscription?.status ?? null,
+      subscriptionStatus: stopped ? "canceled" : (subscription?.status ?? null),
+      currentPeriodEnd: subscription?.currentPeriodEnd ?? null,
+      billingCancelledAt: cancellation === "cancelled" ? new Date() : null,
+    });
     const ids = docs.map((d) => d.id);
     if (ids.length) await tx.delete(extractions).where(inArray(extractions.documentId, ids));
     await tx.delete(documents).where(eq(documents.ownerId, account.id));

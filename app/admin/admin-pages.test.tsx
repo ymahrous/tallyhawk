@@ -11,6 +11,7 @@ import AdminContactPage from "./contact/page";
 import AdminFeedbackPage from "./feedback/page";
 import AdminDocumentsPage from "./documents/page";
 import AdminAuditPage from "./audit/page";
+import AdminDeletedAccountsPage from "./deleted-accounts/page";
 import AdminAccountPage from "./account/page";
 import { renderWithProviders } from "@/test/render";
 import { mockApi, type Routes } from "@/test/api-mock";
@@ -41,6 +42,7 @@ function asAdmin(routes: Routes = {}) {
 const OVERVIEW = {
   users: { total: 120, pro: 30, free: 90, suspended: 2, active_last_7d: 40, signups_today: 3, signups_last_7d: 12, signups_last_30d: 50 },
   admins: { total: 2 },
+  deleted_accounts: { total: 11, last_30d: 4, self_service_last_30d: 3, with_subscription_last_30d: 1 },
   documents: { total: 900, by_status: { COMPLETED: 880, FAILED: 20 }, created_today: 15, created_last_7d: 100, flagged: 4, avg_confidence: 0.934 },
   billing: { active_subscriptions: 28, past_due: 1, canceling_at_period_end: 3, comped_pro: 2, estimated_mrr_usd: 140, price_per_seat_usd: 5 },
   integrations: { quickbooks_connections: 9 },
@@ -52,10 +54,10 @@ const OVERVIEW = {
 const analytics = (days: number) => ({
   days,
   series: [
-    { date: "2026-10-23", signups: 2, documents: 10, failed: 1, feedback: 1, contact: 0 },
-    { date: "2026-10-24", signups: 3, documents: 15, failed: 0, feedback: 0, contact: 2 },
+    { date: "2026-10-23", signups: 2, deletions: 0, documents: 10, failed: 1, feedback: 1, contact: 0 },
+    { date: "2026-10-24", signups: 3, deletions: 1, documents: 15, failed: 0, feedback: 0, contact: 2 },
   ],
-  totals: { signups: 5, documents: 25, failed: 1, failure_rate: 0.04, previous_signups: 4, previous_documents: 0 },
+  totals: { signups: 5, deletions: 1, documents: 25, failed: 1, failure_rate: 0.04, previous_signups: 4, previous_documents: 0 },
   plans: [{ name: "free", value: 90 }, { name: "pro", value: 30 }],
   document_statuses: [{ name: "COMPLETED", value: 24 }],
   categories: [{ name: "Travel", value: 12 }],
@@ -100,8 +102,10 @@ describe("overview", () => {
     expect(screen.getByText("$140")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "7" })).toHaveAttribute("href", "/admin/contact");
     expect(screen.getByRole("link", { name: "5" })).toHaveAttribute("href", "/admin/feedback?type=Bug");
-    expect(await screen.findByText("+25% vs previous 30 days")).toBeInTheDocument();
-    expect(screen.getByRole("figure", { name: "Signups per day" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "4" })).toHaveAttribute("href", "/admin/deleted-accounts");
+    expect(screen.getByText("1 had a subscription · 11 all time · 2 suspended")).toBeInTheDocument();
+    expect(await screen.findByText("+25% vs previous 30 days · 1 deleted")).toBeInTheDocument();
+    expect(screen.getByRole("figure", { name: "Signups and deletions per day" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "ada@example.com" })).toHaveAttribute("href", "/admin/users/u1");
     expect(screen.getAllByText("View as table").length).toBeGreaterThan(3);
 
@@ -342,12 +346,106 @@ describe("documents and audit log", () => {
 
   it("lists admin actions and filters by area", async () => {
     const entry = { id: "e1", actor_id: "a1", actor_username: "admin@tallyhawk.test", action: "user.update", target_type: "user", target_id: "u1", target_label: "ada@example.com", details: { plan: { from: "free", to: "pro" } }, created_at: "2026-10-01T00:00:00Z" };
-    const server = asAdmin({ "GET /admin/audit-log": { json: page([entry]) } });
+    const anonymized = { ...entry, id: "e2", action: "user.delete", target_id: null, target_label: null, details: null };
+    const server = asAdmin({ "GET /admin/audit-log": { json: page([entry, anonymized]) } });
     renderWithProviders(<AdminAuditPage />);
     expect(await screen.findByText("User update")).toBeInTheDocument();
+    expect(within(screen.getByText("User delete").closest("tr")!).getByText("Anonymized")).toBeInTheDocument();
     expect(screen.getByText('{"plan":{"from":"free","to":"pro"}}')).toBeInTheDocument();
+    expect(screen.getByText(/Targets and IP hashes are removed after 365 days/)).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Area" }), "admin");
     await waitFor(() => expect(server.callsTo("GET /admin/audit-log").at(-1)!.url.searchParams.get("area")).toBe("admin"));
+  });
+});
+
+describe("deleted accounts", () => {
+  const RECORDS = [
+    {
+      id: "d1",
+      user_id: "u-pro",
+      username: "pro@example.com",
+      role: "user",
+      plan: "pro",
+      account_created_at: "2026-01-01T00:00:00Z",
+      deleted_at: "2026-10-20T12:00:00Z",
+      deleted_by: "admin",
+      deleted_by_admin_id: "a1",
+      deleted_by_admin_username: "admin@tallyhawk.test",
+      lifetime_documents: 40,
+      subscription: { stripe_customer_id: "cus_9", stripe_subscription_id: "sub_9", status_at_deletion: "active", status: "canceled", current_period_end: null, billing_cancelled_at: "2026-10-20T12:00:00Z" },
+    },
+    {
+      id: "d2",
+      user_id: "u-late",
+      username: "late@example.com",
+      role: "user",
+      plan: "free",
+      account_created_at: null,
+      deleted_at: "2026-10-19T12:00:00Z",
+      deleted_by: "self",
+      deleted_by_admin_id: null,
+      deleted_by_admin_username: null,
+      lifetime_documents: 2,
+      subscription: { stripe_customer_id: "cus_7", stripe_subscription_id: "sub_7", status_at_deletion: null, status: "active", current_period_end: null, billing_cancelled_at: null },
+    },
+    { id: "d3", user_id: "a-x", username: "ex-admin@tallyhawk.test", role: "admin", plan: null, account_created_at: null, anonymized_at: null, deleted_at: "2026-10-18T12:00:00Z", deleted_by: "admin", deleted_by_admin_id: "a1", deleted_by_admin_username: null, lifetime_documents: 0, subscription: null },
+    {
+      id: "d4",
+      user_id: null,
+      username: null,
+      role: "user",
+      plan: "pro",
+      account_created_at: null,
+      anonymized_at: "2026-05-01T12:00:00Z",
+      deleted_at: "2026-01-01T12:00:00Z",
+      deleted_by: "self",
+      deleted_by_admin_id: null,
+      deleted_by_admin_username: null,
+      lifetime_documents: 1,
+      subscription: { stripe_customer_id: null, stripe_subscription_id: null, status_at_deletion: "active", status: "canceled", current_period_end: null, billing_cancelled_at: "2026-01-01T12:00:00Z" },
+    },
+  ];
+
+  it("shows who was deleted, by whom, and what happened to their subscription, with filters", async () => {
+    const server = asAdmin({ "GET /admin/deleted-accounts": { json: page(RECORDS) } });
+    renderWithProviders(<AdminDeletedAccountsPage />);
+
+    const pro = (await screen.findByText("pro@example.com")).closest("tr")!;
+    expect(within(pro).getByText("By admin@tallyhawk.test")).toBeInTheDocument();
+    expect(within(pro).getByText("active at deletion")).toBeInTheDocument();
+    expect(within(pro).getByText("now canceled")).toBeInTheDocument();
+    expect(within(pro).getByText(/Billing stopped/)).toBeInTheDocument();
+    expect(within(pro).getByText("cus_9 · sub_9")).toBeInTheDocument();
+
+    // A subscription still able to bill a deleted account stands out.
+    const late = screen.getByText("late@example.com").closest("tr")!;
+    expect(within(late).getByText("By themselves")).toBeInTheDocument();
+    expect(within(late).getByText("still active")).toBeInTheDocument();
+
+    const exAdmin = screen.getByText("ex-admin@tallyhawk.test").closest("tr")!;
+    expect(within(exAdmin).getByText("admin")).toBeInTheDocument();
+    expect(within(exAdmin).getByText("None")).toBeInTheDocument();
+    expect(within(exAdmin).getByText("By an admin")).toBeInTheDocument();
+
+    // Past the retention period only the anonymized facts are left: no email, ids or Stripe ids.
+    const gone = screen.getByText("Anonymized (retention)").closest("tr")!;
+    expect(within(gone).getByText("active at deletion")).toBeInTheDocument();
+    expect(within(gone).queryByText(/cus_|sub_/)).toBeNull();
+    expect(screen.getByText(/Emails, former ids and Stripe ids are removed 120 days after deletion; the anonymized record stays/)).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Deleted by" }), "self");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Account type" }), "user");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Had a subscription" }));
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search deleted accounts" }), "sub_7{Enter}");
+    await waitFor(() =>
+      expect(server.callsTo("GET /admin/deleted-accounts").at(-1)!.url.search).toBe("?offset=0&deleted_by=self&role=user&subscription=true&search=sub_7&limit=25")
+    );
+  });
+
+  it("explains an empty list", async () => {
+    asAdmin({ "GET /admin/deleted-accounts": { json: page([]) } });
+    renderWithProviders(<AdminDeletedAccountsPage />);
+    expect(await screen.findByText("No deleted accounts match.")).toBeInTheDocument();
   });
 });
 

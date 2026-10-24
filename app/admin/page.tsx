@@ -52,7 +52,11 @@ export default function AdminOverviewPage() {
             <StatCard label="Documents" value={number(o.documents.total)} hint={`${number(o.documents.created_today)} today · ${number(o.documents.by_status.FAILED ?? 0)} failed`} />
             <StatCard label="New contact messages" value={<Link href="/admin/contact" className={styles.link}>{number(o.contact.new)}</Link>} hint={`${number(o.contact.total)} total`} />
             <StatCard label="Open bug reports" value={<Link href="/admin/feedback?type=Bug" className={styles.link}>{number(o.feedback.open_bugs)}</Link>} hint={`${number(o.feedback.new)} new feedback`} />
-            <StatCard label="Suspended" value={number(o.users.suspended)} hint={`${number(o.admins.total)} admin account${o.admins.total === 1 ? "" : "s"}`} />
+            <StatCard
+              label="Deleted, 30 days"
+              value={<Link href="/admin/deleted-accounts" className={styles.link}>{number(o.deleted_accounts.last_30d)}</Link>}
+              hint={`${number(o.deleted_accounts.with_subscription_last_30d)} had a subscription · ${number(o.deleted_accounts.total)} all time · ${number(o.users.suspended)} suspended`}
+            />
             <StatCard
               label="Avg. AI confidence"
               value={o.documents.avg_confidence !== null ? percent(o.documents.avg_confidence) : "—"}
@@ -67,12 +71,23 @@ export default function AdminOverviewPage() {
           {a && (
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <StatCard label={`Signups, ${days} days`} value={number(a.totals.signups)} hint={change(a.totals.signups, a.totals.previous_signups, days)} />
+                <StatCard
+                  label={`Signups, ${days} days`}
+                  value={number(a.totals.signups)}
+                  hint={[change(a.totals.signups, a.totals.previous_signups, days), `${number(a.totals.deletions)} deleted`].filter(Boolean).join(" · ")}
+                />
                 <StatCard label={`Uploads, ${days} days`} value={number(a.totals.documents)} hint={change(a.totals.documents, a.totals.previous_documents, days)} />
                 <StatCard label="Processing failure rate" value={percent(a.totals.failure_rate)} hint={`${number(a.totals.failed)} failed uploads`} />
               </div>
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <DailyChart title="Signups per day" data={a.series} series={[{ key: "signups", label: "Signups" }]} />
+                <DailyChart
+                  title="Signups and deletions per day"
+                  data={a.series}
+                  series={[
+                    { key: "signups", label: "Signups" },
+                    { key: "deletions", label: "Deleted accounts" },
+                  ]}
+                />
                 <DailyChart
                   title="Documents per day"
                   data={a.series}

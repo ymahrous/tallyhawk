@@ -6,6 +6,7 @@ import { AdminHeader, DataState, Pagination, SearchForm } from "@/components/adm
 import { adminStyles, formatDateTime } from "@/components/admin/styles";
 import { useAdminData } from "@/components/admin/useAdminData";
 import { getAuditLog } from "@/lib/admin-api";
+import { RETENTION, period } from "@/lib/retention";
 
 const PAGE_SIZE = 50;
 const AREAS = [
@@ -29,7 +30,7 @@ export default function AdminAuditPage() {
 
   return (
     <>
-      <AdminHeader title="Audit log" description="Every change made from the admin dashboard: who, what and when." />
+      <AdminHeader title="Audit log" description={`Every change made from the admin dashboard: who, what and when. Targets and IP hashes are removed after ${period(RETENTION.auditLogIdentifiersDays, "day")} (sooner for deleted customers); the anonymized entry stays.`} />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <select aria-label="Area" className={styles.input} value={filters.area ?? ""} onChange={(e) => setFilters((f) => ({ ...f, area: e.target.value || undefined, offset: 0 }))}>
           <option value="">All areas</option>
@@ -56,7 +57,9 @@ export default function AdminAuditPage() {
                   <td className={`${styles.td} whitespace-nowrap ${styles.body}`}>{formatDateTime(entry.created_at)}</td>
                   <td className={`${styles.td} ${styles.body}`}>{entry.actor_username}</td>
                   <td className={`${styles.td} ${styles.body}`}>{actionLabel(entry.action)}</td>
-                  <td className={`${styles.td} ${styles.body} max-w-xs break-words`}>{entry.target_label ?? "—"}</td>
+                  <td className={`${styles.td} ${styles.body} max-w-xs break-words`}>
+                    {entry.target_label ?? <span className={`italic ${styles.muted}`}>{entry.target_type ? "Anonymized" : "—"}</span>}
+                  </td>
                   <td className={`${styles.td} ${styles.muted} max-w-xs break-words font-mono text-xs`}>
                     {entry.details ? JSON.stringify(entry.details) : "—"}
                   </td>

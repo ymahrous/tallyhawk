@@ -399,21 +399,51 @@ describe("account page", () => {
     ).toBeInTheDocument();
   });
 
-  it("only deletes the account after the confirmation phrase is typed", async () => {
+  it("warns that deleting is final and unrefundable, and needs the acknowledgement and the phrase", async () => {
     const server = as("free", {
       "GET /quickbooks/status": { json: { connected: false } },
-      "DELETE /auth/delete": { json: {} },
+      "DELETE /auth/delete": { status: 204 },
     });
     renderWithProviders(<AccountPage />);
     const button = await screen.findByRole("button", { name: "Permanently Delete Account" });
+    const danger = screen.getByRole("region", { name: "Danger Zone" });
+    expect(danger).toHaveTextContent("you can't claim a refund, credit or any other compensation for payments you've already made");
+    expect(danger).toHaveTextContent("Nothing can be recovered.");
+    expect(danger).toHaveTextContent("Your account can't be restored.");
+    expect(danger).toHaveTextContent("for 120 days to handle payment disputes; after that only an anonymized version remains");
     expect(button).toBeDisabled();
 
-    await userEvent.type(screen.getByPlaceholderText("delete my account"), "delete my account");
+    // The phrase alone isn't enough.
+    await userEvent.type(screen.getByLabelText(/to confirm/), "delete my account");
+    expect(button).toBeDisabled();
+    await userEvent.click(screen.getByRole("checkbox", { name: /won't get a refund and can't recover/ }));
+    expect(button).toBeEnabled();
     await userEvent.click(button);
 
     await waitFor(() => expect(server.callsTo("DELETE /auth/delete")).toHaveLength(1));
     expect(localStorage.getItem("token")).toBeNull();
     expect(router.push).toHaveBeenCalledWith("/");
+  });
+
+  it("explains a failed deletion and keeps the user signed in", async () => {
+    as("free", {
+      "GET /quickbooks/status": { json: { connected: false } },
+      "DELETE /auth/delete": { status: 502, json: { detail: "Couldn't cancel your subscription. Please try again." } },
+    });
+    renderWithProviders(<AccountPage />);
+    await userEvent.click(await screen.findByRole("checkbox", { name: /won't get a refund/ }));
+    await userEvent.type(screen.getByLabelText(/to confirm/), "delete my account");
+    await userEvent.click(screen.getByRole("button", { name: "Permanently Delete Account" }));
+    expect(await screen.findByText("Couldn't cancel your subscription. Please try again.")).toBeInTheDocument();
+    expect(localStorage.getItem("token")).not.toBeNull();
+  });
+
+  it("offers installing the app only where the browser supports it", async () => {
+    as("free", { "GET /quickbooks/status": { json: { connected: false } } });
+    renderWithProviders(<AccountPage />);
+    // jsdom has no install support, so the section says so instead of showing a dead button.
+    expect(await screen.findByText(/This browser can't install web apps/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Install Tallyhawk" })).toBeNull();
   });
 
   it("shows renewal dates and opens the Stripe billing portal for subscribers", async () => {

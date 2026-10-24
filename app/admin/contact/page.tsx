@@ -9,6 +9,7 @@ import { StatusTabs, TriageItem } from "@/components/admin/Triage";
 import { useAdminData } from "@/components/admin/useAdminData";
 import { deleteAdminContact, listAdminContact, updateAdminContact, type AdminContactMessage } from "@/lib/admin-api";
 import type { TriageStatus } from "@/lib/support";
+import { RETENTION, period } from "@/lib/retention";
 
 const PAGE_SIZE = 25;
 
@@ -22,7 +23,7 @@ export default function AdminContactPage() {
 
   return (
     <>
-      <AdminHeader title="Contact inbox" description="Messages sent through the public contact form. Reply by email, then mark them resolved." />
+      <AdminHeader title="Contact inbox" description={`Messages sent through the public contact form. Reply by email, then mark them resolved. Sender details and text are removed ${period(RETENTION.supportMessageDays, "day")} after a message arrives.`} />
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <StatusTabs value={filters.status} counts={inbox.data?.status_counts ?? {}} onChange={(status) => setFilters((f) => ({ ...f, status, offset: 0 }))} />
         <SearchForm label="Search messages" placeholder="Name, email, subject or text" value={filters.search ?? ""} onSearch={(search) => setFilters((f) => ({ ...f, search, offset: 0 }))} />
@@ -35,7 +36,7 @@ export default function AdminContactPage() {
               <TriageItem
                 key={m.id}
                 id={m.id}
-                title={`${m.subject} — ${m.name}`}
+                title={`${m.subject ?? ""} — ${m.name ?? ""}`}
                 status={m.status}
                 note={m.admin_note}
                 createdAt={m.created_at}
@@ -49,7 +50,7 @@ export default function AdminContactPage() {
                       </>
                     )}
                     {" · "}
-                    <a href={`mailto:${encodeURIComponent(m.email)}?subject=${encodeURIComponent(`Re: ${m.subject}`)}`} className={styles.link}>
+                    <a href={`mailto:${encodeURIComponent(m.email ?? "")}?subject=${encodeURIComponent(`Re: ${m.subject ?? ""}`)}`} className={styles.link}>
                       Reply by email
                     </a>
                   </>

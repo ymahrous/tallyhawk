@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { enumQuery, pageOf, paged, searchFilter } from "@/server/admin";
 import { getDb } from "@/server/db";
 import { feedback, users } from "@/server/db/schema";
@@ -6,7 +6,10 @@ import { getCurrentAdmin, json, route } from "@/server/http";
 import { serializeFeedback } from "@/server/serializers";
 import { FEEDBACK_TYPES, TRIAGE_STATUSES } from "@/lib/support";
 
-/** Feedback and bug reports (`type=Bug`), newest first, with the author when they were signed in. */
+/**
+ * Feedback and bug reports (`type=Bug`), newest first, with the author when they were signed in.
+ * Entries anonymized by the retention schedule have no text left and aren't listed.
+ */
 export const GET = route(async (request) => {
   await getCurrentAdmin(request);
   const url = new URL(request.url);
@@ -15,7 +18,7 @@ export const GET = route(async (request) => {
   const status = enumQuery(url, "status", TRIAGE_STATUSES);
   const db = getDb();
 
-  const base = and(type ? eq(feedback.type, type) : undefined, searchFilter(url, [feedback.message]));
+  const base = and(isNull(feedback.anonymizedAt), type ? eq(feedback.type, type) : undefined, searchFilter(url, [feedback.message]));
   const filter = and(base, status ? eq(feedback.status, status) : undefined);
   const [{ total }] = await db.select({ total: count() }).from(feedback).where(filter);
   const rows = await db

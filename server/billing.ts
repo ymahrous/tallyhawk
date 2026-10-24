@@ -1,8 +1,8 @@
 import "server-only";
-import { eq, or } from "drizzle-orm";
+import { desc, eq, or } from "drizzle-orm";
 import type Stripe from "stripe";
 import type { Db } from "./db";
-import { subscriptions, users, type SubscriptionRow } from "./db/schema";
+import { deletedAccounts, subscriptions, users, type SubscriptionRow } from "./db/schema";
 import { stripe } from "./stripe";
 
 // The one place Stripe state becomes Tallyhawk state. The webhook, the post-checkout confirmation
@@ -37,7 +37,8 @@ export function retrieveSubscription(subscriptionId: string): Promise<Stripe.Sub
  * Writes `sub` to the subscription row of its owner and sets their plan. The owner is the user the
  * caller vouches for (`userId`, from a checkout session we created), else the `user_id` metadata we
  * put on every subscription, else whoever already holds this subscription or customer. Returns the
- * owner's id, or null when the subscription belongs to no Tallyhawk account (it's then ignored).
+ * owner's id, or null when the subscription belongs to no live account: if it belonged to a deleted
+ * one, that account's deletion record is updated instead (see syncDeletedAccountSubscription).
  */
 export async function syncSubscription(db: Db, sub: Stripe.Subscription, userId?: string | null): Promise<string | null> {
   const customerId = idOf(sub.customer);
@@ -50,11 +51,12 @@ export async function syncSubscription(db: Db, sub: Stripe.Subscription, userId?
       .limit(1);
     ownerId = existing?.userId ?? null;
   }
-  if (!ownerId) return null;
-
-  // A deleted account, or a customer-supplied id that isn't a customer: acknowledge and ignore.
-  const [owner] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, ownerId)).limit(1);
-  if (!owner || owner.role !== "user") return null;
+  // No live customer owns it: a deleted account's subscription, or one we've never seen.
+  const [owner] = ownerId ? await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, ownerId)).limit(1) : [];
+  if (!owner || owner.role !== "user") {
+    await syncDeletedAccountSubscription(db, sub, ownerId);
+    return null;
+  }
 
   const plan = planForStatus(sub.status);
   const item = sub.items?.data?.[0];
@@ -76,7 +78,7 @@ export async function syncSubscription(db: Db, sub: Stripe.Subscription, userId?
     if (replacesLive && plan === "free") return;
     if (replacesLive) {
       // Two live subscriptions (e.g. checkout completed in two tabs): Stripe bills both, but only
-      // the newer is tracked here. Flag it so the older one can be cancelled and refunded.
+      // the newer is tracked here. Flag it so an admin can cancel the older one in Stripe.
       console.warn(JSON.stringify({ level: "warn", event: "duplicate_subscription", userId: owner.id, kept: sub.id, replaced: current!.stripeSubscriptionId }));
     }
     await tx
@@ -95,17 +97,76 @@ export async function subscriptionOf(db: Db, userId: string): Promise<Subscripti
 }
 
 /**
- * Cancels the user's Stripe subscription immediately, if one could still bill them. Called before
- * an account is deleted: otherwise Stripe would keep charging a customer who no longer exists.
+ * Cancels a Stripe subscription immediately. "missing" means Stripe no longer has it (e.g. it was
+ * already cancelled from the Stripe dashboard), which is fine; any other failure throws.
  */
-export async function cancelBillableSubscription(db: Db, userId: string): Promise<void> {
-  const row = await subscriptionOf(db, userId);
-  if (!row?.stripeSubscriptionId || !BILLABLE_STATUSES.has(row.status)) return;
+async function cancelStripeSubscription(subscriptionId: string): Promise<"cancelled" | "missing"> {
   try {
-    await stripe().subscriptions.cancel(row.stripeSubscriptionId);
+    await stripe().subscriptions.cancel(subscriptionId);
+    return "cancelled";
   } catch (error) {
-    // Already cancelled on Stripe's side (e.g. from the dashboard) is fine; anything else isn't.
-    const code = (error as { code?: string } | null)?.code;
-    if (code !== "resource_missing") throw error;
+    if ((error as { code?: string } | null)?.code === "resource_missing") return "missing";
+    throw error;
   }
+}
+
+/**
+ * Cancels the subscription in `row` if it could still bill the customer. Called before an account is
+ * deleted: otherwise Stripe would keep charging someone whose account no longer exists.
+ */
+export async function cancelBillableSubscription(row: SubscriptionRow | undefined): Promise<"cancelled" | "missing" | "not_billable"> {
+  if (!row?.stripeSubscriptionId || !BILLABLE_STATUSES.has(row.status)) return "not_billable";
+  return cancelStripeSubscription(row.stripeSubscriptionId);
+}
+
+/**
+ * Keeps a deleted account's record in step with Stripe. Matches it by the former user id (from the
+ * hint or subscription metadata), the subscription or the customer. A subscription that could still
+ * bill (e.g. a checkout the person finished after deleting their account) is cancelled on the spot
+ * and logged for an admin to review. Returns whether a deletion record matched.
+ */
+export async function syncDeletedAccountSubscription(db: Db, sub: Stripe.Subscription, formerUserId?: string | null): Promise<boolean> {
+  const customerId = idOf(sub.customer);
+  const [record] = await db
+    .select()
+    .from(deletedAccounts)
+    .where(
+      or(
+        formerUserId ? eq(deletedAccounts.userId, formerUserId) : undefined,
+        eq(deletedAccounts.stripeSubscriptionId, sub.id),
+        customerId ? eq(deletedAccounts.stripeCustomerId, customerId) : undefined
+      )
+    )
+    .orderBy(desc(deletedAccounts.deletedAt))
+    .limit(1);
+  if (!record) return false;
+
+  let status = sub.status;
+  let billingCancelledAt = record.billingCancelledAt;
+  if (BILLABLE_STATUSES.has(sub.status)) {
+    await cancelStripeSubscription(sub.id);
+    status = "canceled";
+    billingCancelledAt = new Date();
+    console.warn(JSON.stringify({ level: "warn", event: "billing_after_deletion_cancelled", deletedUserId: record.userId, subscription: sub.id }));
+  }
+
+  // The record follows the subscription it already names; one that turns up later (a stray checkout)
+  // is adopted only if it named none. Either way, billing it stopped is recorded.
+  const tracksThis = !record.stripeSubscriptionId || record.stripeSubscriptionId === sub.id;
+  await db
+    .update(deletedAccounts)
+    .set({
+      ...(tracksThis
+        ? {
+            stripeSubscriptionId: sub.id,
+            stripeCustomerId: record.stripeCustomerId ?? customerId,
+            subscriptionStatus: status,
+            currentPeriodEnd: fromUnix(sub.items?.data?.[0]?.current_period_end) ?? record.currentPeriodEnd,
+          }
+        : {}),
+      billingCancelledAt,
+      updatedAt: new Date(),
+    })
+    .where(eq(deletedAccounts.id, record.id));
+  return true;
 }

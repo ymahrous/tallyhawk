@@ -1,5 +1,14 @@
 import "server-only";
-import type { AuditLogRow, ContactMessageRow, DocumentRow, ExtractionRow, FeedbackRow, User, VendorRow } from "./db/schema";
+import type {
+  AuditLogRow,
+  ContactMessageRow,
+  DeletedAccountRow,
+  DocumentRow,
+  ExtractionRow,
+  FeedbackRow,
+  User,
+  VendorRow,
+} from "./db/schema";
 
 // snake_case response shapes, identical to what the FastAPI backend returned.
 
@@ -102,5 +111,34 @@ export function serializeAuditEntry(a: AuditLogRow) {
     target_label: a.targetLabel,
     details: a.details,
     created_at: a.createdAt.toISOString(),
+  };
+}
+
+export function serializeDeletedAccount(d: DeletedAccountRow) {
+  return {
+    id: d.id,
+    user_id: d.userId,
+    username: d.username,
+    role: d.role,
+    plan: d.plan,
+    account_created_at: iso(d.accountCreatedAt),
+    anonymized_at: iso(d.anonymizedAt),
+    deleted_at: d.deletedAt.toISOString(),
+    deleted_by: d.deletedBy,
+    deleted_by_admin_id: d.deletedByAdminId,
+    deleted_by_admin_username: d.deletedByAdminUsername,
+    lifetime_documents: d.lifetimeDocuments,
+    // Present whenever there was one, including after its Stripe ids are anonymized.
+    subscription:
+      d.stripeSubscriptionId || d.stripeCustomerId || d.subscriptionStatusAtDeletion || d.subscriptionStatus
+      ? {
+          stripe_customer_id: d.stripeCustomerId,
+          stripe_subscription_id: d.stripeSubscriptionId,
+          status_at_deletion: d.subscriptionStatusAtDeletion,
+          status: d.subscriptionStatus,
+          current_period_end: iso(d.currentPeriodEnd),
+          billing_cancelled_at: iso(d.billingCancelledAt),
+        }
+      : null,
   };
 }

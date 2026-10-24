@@ -70,6 +70,7 @@ export interface AdminOverview {
     signups_last_30d: number;
   };
   admins: { total: number };
+  deleted_accounts: { total: number; last_30d: number; self_service_last_30d: number; with_subscription_last_30d: number };
   documents: {
     total: number;
     by_status: Record<string, number>;
@@ -99,8 +100,8 @@ export interface NameValue {
 
 export interface AdminAnalytics {
   days: number;
-  series: { date: string; signups: number; documents: number; failed: number; feedback: number; contact: number }[];
-  totals: { signups: number; documents: number; failed: number; failure_rate: number; previous_signups: number; previous_documents: number };
+  series: { date: string; signups: number; deletions: number; documents: number; failed: number; feedback: number; contact: number }[];
+  totals: { signups: number; deletions: number; documents: number; failed: number; failure_rate: number; previous_signups: number; previous_documents: number };
   plans: NameValue[];
   document_statuses: NameValue[];
   categories: NameValue[];
@@ -195,7 +196,8 @@ export interface TriageChanges {
 export interface AdminFeedback {
   id: string;
   type: FeedbackType | string;
-  message: string;
+  /** Lists never include anonymized entries, so in practice always set. */
+  message: string | null;
   page: string | null;
   status: TriageStatus;
   admin_note: string | null;
@@ -207,10 +209,11 @@ export interface AdminFeedback {
 
 export interface AdminContactMessage {
   id: string;
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
+  // Lists never include anonymized messages, so in practice always set.
+  name: string | null;
+  email: string | null;
+  subject: string | null;
+  message: string | null;
   status: TriageStatus;
   admin_note: string | null;
   user_id: string | null;
@@ -243,6 +246,38 @@ export const listAdminDocuments = (params: PageParams & { status?: string; flagg
   request<Paged<AdminDocumentRow>>(`/admin/documents${query({ ...params })}`, {}, "Failed to load documents");
 export const reprocessAdminDocument = (id: string) =>
   request<{ status: string }>(`/admin/documents/${encodeURIComponent(id)}/reprocess`, { method: "POST" }, "Failed to reprocess the document");
+
+// --- deleted accounts ---
+
+export interface DeletedAccount {
+  id: string;
+  /** The account's former id; null once anonymized. */
+  user_id: string | null;
+  /** Null once anonymized (lib/retention.ts). */
+  username: string | null;
+  role: "user" | "admin";
+  plan: "free" | "pro" | null;
+  account_created_at: string | null;
+  anonymized_at: string | null;
+  deleted_at: string;
+  deleted_by: "self" | "admin";
+  deleted_by_admin_id: string | null;
+  deleted_by_admin_username: string | null;
+  lifetime_documents: number;
+  subscription: {
+    stripe_customer_id: string | null;
+    stripe_subscription_id: string | null;
+    status_at_deletion: string | null;
+    /** The latest status Stripe reported, kept current after the deletion. */
+    status: string | null;
+    current_period_end: string | null;
+    /** When Tallyhawk stopped the subscription billing. */
+    billing_cancelled_at: string | null;
+  } | null;
+}
+
+export const listDeletedAccounts = (params: PageParams & { deleted_by?: "self" | "admin"; role?: "user" | "admin"; subscription?: boolean } = {}) =>
+  request<Paged<DeletedAccount>>(`/admin/deleted-accounts${query({ ...params })}`, {}, "Failed to load deleted accounts");
 
 // --- audit log ---
 

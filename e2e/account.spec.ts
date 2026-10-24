@@ -61,6 +61,27 @@ test.describe("account, billing and analytics", () => {
     await expect(page).toHaveURL(/\/billing\/success/);
   });
 
+  test("deleting an account warns there's no refund and needs an explicit acknowledgement", async ({
+    page,
+    api,
+    signIn,
+  }) => {
+    await signIn();
+    api.set({ ...accountRoutes(), "DELETE /auth/delete": { status: 204 } });
+
+    await page.goto("/account");
+    const danger = page.getByRole("region", { name: "Danger Zone" });
+    await expect(danger.getByText("No refunds.")).toBeVisible();
+    const button = danger.getByRole("button", { name: "Permanently Delete Account" });
+    await danger.getByLabel(/to confirm/).fill("delete my account");
+    await expect(button).toBeDisabled();
+    await danger.getByRole("checkbox", { name: /won't get a refund/ }).check();
+    await button.click();
+
+    await expect(page).toHaveURL(/\/$/);
+    expect(api.calls("DELETE /auth/delete")).toHaveLength(1);
+  });
+
   test("signed-out visitors are asked to log in before upgrading", async ({ page }) => {
     await page.goto("/pricing");
     await page.getByRole("link", { name: "Upgrade to Pro" }).click();

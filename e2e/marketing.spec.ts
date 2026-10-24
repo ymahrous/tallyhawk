@@ -106,3 +106,32 @@ test.describe("cookie consent", () => {
     await expect(banner).toBeHidden();
   });
 });
+
+test.describe("install as an app", () => {
+  test("the footer offers installing only once the browser can, and opens its install dialog", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    const footer = page.locator("footer");
+    await expect(footer.getByRole("button", { name: "Install app" })).toHaveCount(0);
+
+    // Headless Chromium never decides a site is installable, so stand in for its event.
+    await page.evaluate(() => {
+      const event = Object.assign(new Event("beforeinstallprompt", { cancelable: true }), {
+        prompt: async () => {
+          (window as unknown as { installPrompted: boolean }).installPrompted = true;
+        },
+        userChoice: Promise.resolve({ outcome: "accepted" }),
+      });
+      window.dispatchEvent(event);
+    });
+    await footer.getByRole("button", { name: "Install app" }).click();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { installPrompted?: boolean }).installPrompted)).toBe(true);
+    await expect(footer.getByRole("button", { name: "Install app" })).toHaveCount(0);
+  });
+
+  test("the manifest makes the site installable", async ({ request }) => {
+    const manifest = await (await request.get("/manifest.webmanifest")).json();
+    expect(manifest).toMatchObject({ display: "standalone", start_url: "/capture" });
+    expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(expect.arrayContaining(["192x192", "512x512"]));
+  });
+});

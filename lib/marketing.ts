@@ -1,4 +1,5 @@
 import { PRODUCT_FACTS } from "@/lib/site";
+import { RETENTION, period } from "@/lib/retention";
 
 // Marketing copy lives here rather than in JSX so the landing page, FAQ structured data and
 // llms.txt all state the same facts. Every claim must be backed by the product or the legal pages.
@@ -155,7 +156,7 @@ export const PRODUCT_FAQ: readonly FaqItem[] = [
   {
     question: "Can I delete my data?",
     answer:
-      "Yes. You can delete individual documents at any time, or delete your whole account from Account Settings. Account data is purged from primary systems within 48 hours and from backups within 30 days.",
+      `Yes. Delete individual documents any time, or your whole account from Account Settings. Deleting your account is permanent and doesn't entitle you to a refund. Documents and account data are purged from primary systems within ${period(RETENTION.accountPurgeHours, "hour")} and backups within ${period(RETENTION.backupDays, "day")}; a minimal record (email, plan, dates, billing IDs) is kept for ${period(RETENTION.deletionRecordIdentifiersDays, "day")} for payment disputes, then anonymized.`,
   },
 ];
 
@@ -176,7 +177,7 @@ export const PRICING_FAQ: readonly FaqItem[] = [
   {
     question: "Can I cancel Pro at any time?",
     answer:
-      "Yes. Cancel whenever you like from Account → Manage billing and keep Pro features until the end of the current billing period. Partial refunds aren't provided for unused time.",
+      "Yes. Cancel whenever you like from Account → Manage billing and keep Pro features until the end of the current billing period. Except where the law requires otherwise, partial refunds aren't provided for unused time, and deleting your account doesn't entitle you to a refund.",
   },
   {
     question: "Which currency am I billed in?",

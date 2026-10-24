@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { enumQuery, pageOf, paged, searchFilter } from "@/server/admin";
 import { getDb } from "@/server/db";
 import { contactMessages } from "@/server/db/schema";
@@ -6,7 +6,7 @@ import { getCurrentAdmin, json, route } from "@/server/http";
 import { serializeContactMessage } from "@/server/serializers";
 import { TRIAGE_STATUSES } from "@/lib/support";
 
-/** Contact-form submissions, newest first. */
+/** Contact-form submissions, newest first. Ones anonymized by the retention schedule aren't listed. */
 export const GET = route(async (request) => {
   await getCurrentAdmin(request);
   const url = new URL(request.url);
@@ -14,7 +14,10 @@ export const GET = route(async (request) => {
   const status = enumQuery(url, "status", TRIAGE_STATUSES);
   const db = getDb();
 
-  const base = searchFilter(url, [contactMessages.name, contactMessages.email, contactMessages.subject, contactMessages.message]);
+  const base = and(
+    isNull(contactMessages.anonymizedAt),
+    searchFilter(url, [contactMessages.name, contactMessages.email, contactMessages.subject, contactMessages.message])
+  );
   const filter = and(base, status ? eq(contactMessages.status, status) : undefined);
   const [{ total }] = await db.select({ total: count() }).from(contactMessages).where(filter);
   const rows = await db.select().from(contactMessages).where(filter).orderBy(desc(contactMessages.createdAt)).limit(page.limit).offset(page.offset);

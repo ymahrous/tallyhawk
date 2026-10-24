@@ -90,13 +90,16 @@ export const PATCH = route<Params<"userId">>(async (request, ctx) => {
   return json(serializeAccount(await findCustomer(db, user.id)));
 });
 
-/** Permanently deletes a customer: cancels their subscription, removes their files and data. */
+/**
+ * Permanently deletes a customer: cancels their subscription and removes their files and data,
+ * keeping only the deletion record (GET /admin/deleted-accounts).
+ */
 export const DELETE = route<Params<"userId">>(async (request, ctx) => {
   const admin = await getCurrentAdmin(request);
   const { userId } = await ctx.params;
   const db = getDb();
   const user = await findCustomer(db, userId);
-  await deleteAccount(db, user);
+  await deleteAccount(db, user, { by: "admin", admin });
   await audit(db, request, admin, { action: "user.delete", targetType: "user", targetId: user.id, targetLabel: user.username });
   return noContent();
 });

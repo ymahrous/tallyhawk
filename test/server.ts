@@ -32,6 +32,7 @@ const TABLES = [
   "contactmessage",
   "passwordresettoken",
   "auditlog",
+  "deletedaccount",
   "stripeevent",
   "ratelimit",
   '"user"',

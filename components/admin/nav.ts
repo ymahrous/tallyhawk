@@ -2,6 +2,7 @@
 export const ADMIN_LINKS = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/users", label: "Customers" },
+  { href: "/admin/deleted-accounts", label: "Deleted accounts" },
   { href: "/admin/admins", label: "Admins" },
   { href: "/admin/contact", label: "Contact inbox" },
   { href: "/admin/feedback", label: "Feedback & bugs" },

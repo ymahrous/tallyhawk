@@ -5,6 +5,8 @@ import { Logo } from "@/components/brand/Logo";
 import { SOCIAL_LINKS } from "@/lib/site";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { useCookieConsent } from "@/app/providers/CookieConsentContext";
+import InstallAppButton from "@/components/pwa/InstallAppButton";
+import { useInstallApp } from "@/lib/useInstallApp";
 
 // Only public, indexable destinations here: the footer is on every page, so links to signed-in
 // routes would hand crawlers a trail of noindex URLs.
@@ -33,6 +35,8 @@ export default function Footer() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const { reopen } = useCookieConsent();
+  const installState = useInstallApp();
+  const canInstall = installState !== "unavailable" && installState !== "installed";
 
   const linkClass = `text-sm transition-colors ${
     isDark ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
@@ -67,6 +71,10 @@ export default function Footer() {
                 {column.links.map((link) => (
                   <li key={link.label}><Link href={link.href} className={linkClass}>{link.label}</Link></li>
                 ))}
+                {/* Offered only where this browser can install the app. */}
+                {column.heading === "Product" && canInstall && (
+                  <li><InstallAppButton className={linkClass} /></li>
+                )}
               </ul>
             </nav>
           ))}

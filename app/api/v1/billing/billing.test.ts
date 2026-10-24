@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { decodeAccessToken } from "@/server/auth";
 import type { Db } from "@/server/db";
-import { stripeEvents, subscriptions, usageRecords, users } from "@/server/db/schema";
+import { deletedAccounts, stripeEvents, subscriptions, usageRecords, users } from "@/server/db/schema";
 import { currentMonth } from "@/server/usage";
 import { call, createAdmin, createTestDb, createUser, resetTestDb } from "@/test/server";
 import { DELETE as deleteAccount } from "../auth/delete/route";
@@ -308,6 +308,69 @@ describe("account deletion and billing", () => {
     expect(await db.select().from(users)).toEqual([]);
   });
 
+  it("keeps a record of the deleted account and its subscription", async () => {
+    const { user, token } = await createUser(db, { plan: "pro" });
+    await db.insert(subscriptions).values({
+      userId: user.id,
+      status: "active",
+      stripeCustomerId: "cus_1",
+      stripeSubscriptionId: "sub_1",
+      currentPeriodEnd: new Date("2026-11-01T00:00:00Z"),
+    });
+    await db.insert(usageRecords).values([
+      { userId: user.id, month: new Date(Date.UTC(2026, 8, 1)), documentsProcessed: 12 },
+      { userId: user.id, month: new Date(Date.UTC(2026, 9, 1)), documentsProcessed: 3 },
+    ]);
+    await call(deleteAccount, "DELETE", "/auth/delete", { token });
+
+    const [record] = await db.select().from(deletedAccounts);
+    expect(record).toMatchObject({
+      userId: user.id,
+      username: "ada@example.com",
+      role: "user",
+      plan: "pro",
+      deletedBy: "self",
+      deletedByAdminId: null,
+      lifetimeDocuments: 15,
+      stripeCustomerId: "cus_1",
+      stripeSubscriptionId: "sub_1",
+      subscriptionStatusAtDeletion: "active",
+      subscriptionStatus: "canceled",
+      currentPeriodEnd: new Date("2026-11-01T00:00:00Z"),
+    });
+    expect(record.billingCancelledAt).toBeInstanceOf(Date);
+    expect(record.accountCreatedAt).toEqual(user.createdAt);
+  });
+
+  it("keeps following a deleted account's subscription through the webhook", async () => {
+    const { user, token } = await createUser(db, { plan: "pro" });
+    await db.insert(subscriptions).values({ userId: user.id, status: "active", stripeCustomerId: "cus_1", stripeSubscriptionId: "sub_1" });
+    await call(deleteAccount, "DELETE", "/auth/delete", { token });
+
+    // Stripe confirms the cancellation after the account is gone: recorded, nothing else to do.
+    stripeMock.subscriptionRetrieve.mockResolvedValueOnce(stripeSubscription({ status: "canceled", items: { data: [{ current_period_end: 1795392000 }] } }));
+    expect((await call(webhook, "POST", "/billing/webhook", signedEvent("customer.subscription.deleted", { id: "sub_1" }))).status).toBe(200);
+    expect((await db.select().from(deletedAccounts))[0]).toMatchObject({ subscriptionStatus: "canceled", currentPeriodEnd: new Date(1795392000 * 1000) });
+    expect(stripeMock.subscriptionCancel).toHaveBeenCalledTimes(1); // only the deletion's own cancel
+    expect(await db.select().from(subscriptions)).toEqual([]);
+  });
+
+  it("cancels a subscription that turns up for a deleted account (checkout finished after deleting)", async () => {
+    const { user, token } = await createUser(db);
+    await call(deleteAccount, "DELETE", "/auth/delete", { token });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    stripeMock.subscriptionRetrieve.mockResolvedValueOnce(stripeSubscription({ id: "sub_late", customer: "cus_late" }));
+    await call(webhook, "POST", "/billing/webhook", signedEvent("checkout.session.completed", { mode: "subscription", client_reference_id: user.id, subscription: "sub_late" }));
+
+    expect(stripeMock.subscriptionCancel).toHaveBeenCalledWith("sub_late");
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"event":"billing_after_deletion_cancelled"'));
+    const [record] = await db.select().from(deletedAccounts);
+    expect(record).toMatchObject({ stripeSubscriptionId: "sub_late", stripeCustomerId: "cus_late", subscriptionStatus: "canceled", subscriptionStatusAtDeletion: null });
+    expect(record.billingCancelledAt).toBeInstanceOf(Date);
+    expect(await db.select().from(users)).toEqual([]); // nothing is resurrected
+  });
+
   it("keeps the account if Stripe can't cancel, but tolerates one that's already gone", async () => {
     const { user, token } = await createUser(db, { plan: "pro" });
     await db.insert(subscriptions).values({ userId: user.id, status: "active", stripeCustomerId: "cus_1", stripeSubscriptionId: "sub_1" });
@@ -316,8 +379,12 @@ describe("account deletion and billing", () => {
     expect((await call(deleteAccount, "DELETE", "/auth/delete", { token })).status).toBe(500);
     expect(await db.select().from(users)).toHaveLength(1);
 
+    expect(await db.select().from(deletedAccounts)).toEqual([]); // no record without a deletion
+
     stripeMock.subscriptionCancel.mockRejectedValueOnce(Object.assign(new Error("No such subscription"), { code: "resource_missing" }));
     expect((await call(deleteAccount, "DELETE", "/auth/delete", { token })).status).toBe(204);
+    // Already gone on Stripe's side: ended, but not something Tallyhawk cancelled.
+    expect((await db.select().from(deletedAccounts))[0]).toMatchObject({ subscriptionStatus: "canceled", billingCancelledAt: null });
   });
 
   it("doesn't call Stripe for ended subscriptions", async () => {
@@ -325,5 +392,6 @@ describe("account deletion and billing", () => {
     await db.insert(subscriptions).values({ userId: user.id, status: "canceled", stripeCustomerId: "cus_1", stripeSubscriptionId: "sub_1" });
     expect((await call(deleteAccount, "DELETE", "/auth/delete", { token })).status).toBe(204);
     expect(stripeMock.subscriptionCancel).not.toHaveBeenCalled();
+    expect((await db.select().from(deletedAccounts))[0]).toMatchObject({ subscriptionStatusAtDeletion: "canceled", subscriptionStatus: "canceled", billingCancelledAt: null });
   });
 });

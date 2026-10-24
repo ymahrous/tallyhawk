@@ -1,8 +1,19 @@
 import { and, avg, count, eq, gte, inArray, isNotNull, notInArray, type SQL } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { getDb } from "@/server/db";
-import { contactMessages, documents, extractions, feedback, quickbooksConnections, subscriptions, users, vendors } from "@/server/db/schema";
+import {
+  contactMessages,
+  deletedAccounts,
+  documents,
+  extractions,
+  feedback,
+  quickbooksConnections,
+  subscriptions,
+  users,
+  vendors,
+} from "@/server/db/schema";
 import { getCurrentAdmin, json, route } from "@/server/http";
+import { hadSubscription } from "@/server/retention";
 import { PRODUCT_FACTS } from "@/lib/site";
 import type { TriageStatus } from "@/lib/support";
 
@@ -67,6 +78,14 @@ export const GET = route(async (request) => {
     countOf(contactMessages, eq(contactMessages.status, "new")),
   ]);
 
+  const deletedCustomer = eq(deletedAccounts.role, "user");
+  const [deletedTotal, deletedMonth, selfDeletedMonth, deletedWithSubscriptionMonth] = await Promise.all([
+    countOf(deletedAccounts, deletedCustomer),
+    countOf(deletedAccounts, and(deletedCustomer, gte(deletedAccounts.deletedAt, monthStart))),
+    countOf(deletedAccounts, and(deletedCustomer, gte(deletedAccounts.deletedAt, monthStart), eq(deletedAccounts.deletedBy, "self"))),
+    countOf(deletedAccounts, and(deletedCustomer, gte(deletedAccounts.deletedAt, monthStart), hadSubscription)),
+  ]);
+
   const byStatus = await db.select({ status: documents.status, n: count() }).from(documents).groupBy(documents.status);
   const [{ avgConfidence }] = await db.select({ avgConfidence: avg(extractions.confidenceScore) }).from(extractions);
 
@@ -82,6 +101,13 @@ export const GET = route(async (request) => {
       signups_last_30d: signupsMonth,
     },
     admins: { total: admins },
+    // Customer accounts only; deleted admins are in the audit log and the deleted-accounts list.
+    deleted_accounts: {
+      total: deletedTotal,
+      last_30d: deletedMonth,
+      self_service_last_30d: selfDeletedMonth,
+      with_subscription_last_30d: deletedWithSubscriptionMonth,
+    },
     documents: {
       total: totalDocuments,
       by_status: Object.fromEntries(byStatus.map((r) => [r.status, r.n])),

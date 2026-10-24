@@ -9,6 +9,7 @@ import {
   updateAdminUser,
   type AdminUserDetail,
 } from "@/lib/admin-api";
+import { RETENTION, period } from "@/lib/retention";
 import { adminStyles } from "./styles";
 
 interface Props {
@@ -96,7 +97,9 @@ export default function UserActions({ user, onChanged, onDeleted }: Props) {
       <div className={`mt-6 border-t pt-6 ${styles.divider}`}>
         <h3 className="text-sm font-semibold text-red-500">Delete account</h3>
         <p className={`mt-1 text-xs ${styles.muted}`}>
-          Cancels any Stripe subscription and permanently deletes the account, its documents and files. This can't be undone.
+          Cancels any Stripe subscription (no refund is issued) and permanently deletes the account, its documents and files. This
+          can't be undone. A deletion record stays under Deleted accounts and is anonymized after{" "}
+          {period(RETENTION.deletionRecordIdentifiersDays, "day")}.
         </p>
         <label htmlFor="confirm-delete" className={`mt-3 block text-xs ${styles.muted}`}>
           Type <span className="font-mono">{user.username}</span> to confirm
