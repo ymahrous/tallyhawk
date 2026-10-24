@@ -6,6 +6,7 @@ import { test, expect, accountRoutes, makeToken } from "./support/fixtures";
 const OVERVIEW = {
   users: { total: 42, pro: 10, free: 32, suspended: 1, active_last_7d: 20, signups_today: 2, signups_last_7d: 9, signups_last_30d: 30 },
   admins: { total: 1 },
+  deleted_accounts: { total: 5, last_30d: 2, self_service_last_30d: 2, with_subscription_last_30d: 0 },
   documents: { total: 300, by_status: { COMPLETED: 290, FAILED: 10 }, created_today: 6, created_last_7d: 40, flagged: 2, avg_confidence: 0.91 },
   billing: { active_subscriptions: 9, past_due: 1, canceling_at_period_end: 1, comped_pro: 1, estimated_mrr_usd: 45, price_per_seat_usd: 5 },
   integrations: { quickbooks_connections: 3 },
@@ -17,10 +18,10 @@ const OVERVIEW = {
 const ANALYTICS = {
   days: 30,
   series: [
-    { date: "2026-10-23", signups: 1, documents: 4, failed: 0, feedback: 1, contact: 0 },
-    { date: "2026-10-24", signups: 2, documents: 6, failed: 1, feedback: 0, contact: 1 },
+    { date: "2026-10-23", signups: 1, deletions: 0, documents: 4, failed: 0, feedback: 1, contact: 0 },
+    { date: "2026-10-24", signups: 2, deletions: 1, documents: 6, failed: 1, feedback: 0, contact: 1 },
   ],
-  totals: { signups: 3, documents: 10, failed: 1, failure_rate: 0.1, previous_signups: 2, previous_documents: 8 },
+  totals: { signups: 3, deletions: 1, documents: 10, failed: 1, failure_rate: 0.1, previous_signups: 2, previous_documents: 8 },
   plans: [{ name: "free", value: 32 }, { name: "pro", value: 10 }],
   document_statuses: [{ name: "COMPLETED", value: 9 }, { name: "FAILED", value: 1 }],
   categories: [{ name: "Software", value: 5 }],

@@ -28,7 +28,8 @@ This repository is the whole product: the Next.js UI **and** its API. The REST A
 ### Core Pipeline
 - **Document dashboard** with drag-and-drop upload, live polling for processing status, and image thumbnails
 - **QuickBooks Online Sync** — push extracted invoices directly to QBO as categorized Expenses with a single click
-- **Mobile Capture PWA** — snap a photo of a receipt on a desk and push it straight through the processing pipeline
+- **Installable app** — an optional "Install app" control (footer and account page) adds Tallyhawk to the home screen or Dock: the browser's own install dialog on Chrome, Edge and Android, step-by-step instructions on iPhone, iPad and Safari for Mac
+- **Mobile Capture** — the installed app opens straight into the camera: snap a receipt and push it through the processing pipeline
 
 ### Data & Intelligence
 - **Vendor Intelligence** — fuzzy-matches raw vendor strings against your known vendors and their aliases (≥ 80% similarity, e.g. "AMZN" → "Amazon"); renaming or merging a vendor re-labels its historical documents and keeps the old names as aliases for future matches
@@ -41,12 +42,13 @@ This repository is the whole product: the Next.js UI **and** its API. The REST A
 - **Email/password authentication** with JWT bearer tokens, a password policy enforced by both the forms and the API, a strength meter, server-side rate limiting of sign-in attempts, and a confirm-password flow
 - **Session control** — changing or resetting a password signs out every other session; "sign out of all devices" and admin suspension revoke sessions immediately
 - **Forgot/Reset Password** — secure, expiring, single-use token flow (only token hashes are stored) with HTML emails via Resend
-- **Account page** for viewing session info, changing password, setting a base currency, managing billing and the QuickBooks connection, and exporting tax summaries
+- **Account page** for viewing session info, changing password, setting a base currency, managing billing and the QuickBooks connection, exporting tax summaries, installing the app, and deleting the account (behind an explicit no-refund, nothing-recoverable warning)
 
 ### Admin dashboard
 - **Separate account type** — admins are their own accounts (`role = 'admin'`), never customers: they sign in on the same page but land on `/admin`, see admin-only navigation, and are refused by every customer endpoint (and customers by every admin endpoint)
-- **Analytics** — customers, Pro, estimated MRR, past-due and canceling subscriptions, documents and failure rate, AI confidence, daily signups/uploads/support volume, category, currency and plan breakdowns, top uploaders
+- **Analytics** — customers, Pro, estimated MRR, past-due and canceling subscriptions, deleted accounts (churn), documents and failure rate, AI confidence, daily signups/uploads/support volume, category, currency and plan breakdowns, top uploaders
 - **Customers** — search, filter and sort; per-customer usage, documents and Stripe subscription; grant or revoke Pro, suspend/reactivate, sign out everywhere, email a reset link, delete (cancelling Stripe billing first)
+- **Deleted accounts** — a record of every deleted account: who deleted it and when, plan, lifetime documents, and the Stripe subscription, whose status the webhook keeps current after deletion (any subscription that would still bill a deleted account is cancelled automatically). Identifiers are removed after the retention period and the anonymized record is kept
 - **Admins** — add admin accounts, suspend/reactivate or delete other admins (never yourself)
 - **Support inboxes** — contact-form messages and feedback/bug reports with triage states, private notes and deletion
 - **Documents** — every upload across customers (metadata only), with reprocessing of failed or stuck documents
@@ -57,6 +59,7 @@ This repository is the whole product: the Next.js UI **and** its API. The REST A
 - Postgres-backed rate limiting (works across serverless instances) on sign-in, signup, password reset, contact, feedback, upload and checkout; sign-in limits are per IP and per attempted email (existing or not), so lockouts can't reveal which emails are registered
 - Strict security headers (CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`, Referrer-Policy, Permissions-Policy) and `no-store` on API responses
 - Uploads are checked by content (magic bytes), not just name, and stored under per-user unguessable paths
+- A minimum-period data retention schedule (`lib/retention.ts`), enforced by a daily job and quoted by the privacy policy. Personal data is anonymized, not deleted, so statistics survive: deletion records lose the email, former id and Stripe ids after 120 days; contact messages and feedback lose sender details and text after 180 days; the admin audit log loses targets and IP hashes after 365 days. Stripe event ids are deleted after 30 days, reset links once expired or used, rate-limit counters after 1 hour
 - Request body size limits, bounded inputs, CSV formula-injection escaping in tax exports, sign-in timing that doesn't reveal whether an email is registered, and a honeypot on the contact form
 
 ### UX & Design
@@ -274,6 +277,7 @@ After moving from the separate backend, also update these external settings to t
 
 - **Stripe** webhook endpoint → `https://<your-domain>/api/v1/billing/webhook`, sending `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `customer.subscription.created/updated/deleted/paused/resumed`, `invoice.paid` and `invoice.payment_failed`
 - **Stripe Customer Portal** → enable it in the Stripe dashboard (Settings → Billing → Customer portal), with cancellation "at the end of the billing period" so it matches the pricing FAQ
+- **Retention job** → set `CRON_SECRET`; Vercel runs `/api/v1/cron/retention` daily from `vercel.json` (elsewhere, call it daily with `Authorization: Bearer $CRON_SECRET`)
 - **Admins** → run `npm run db:migrate` (it promotes an existing `ADMIN_USERNAME` account to an admin account) or `npm run admin:create -- <email>`
 - **Intuit** redirect URI and `QB_REDIRECT_URI` → `https://<your-domain>/api/v1/quickbooks/callback`
 - Reuse the old backend's **`SECRET_KEY`** so existing sessions keep working (password hashes are compatible either way).
@@ -293,6 +297,7 @@ Uploads are processed after the response with `after()`; the upload route sets `
 | `PRO_MONTHLY_PRICE_USD` | — | Price used for the admin dashboard's MRR estimate (defaults to the advertised Pro price) |
 | `ADMIN_USERNAME` | — | Upgrade path only: `npm run db:migrate` turns this existing account into an admin account |
 | `APP_URL` | — | Public origin for emails/redirects (defaults to the request origin) |
+| `CRON_SECRET` | ✅ | Authorizes the daily data-retention job (`/api/v1/cron/retention`) |
 | `NEXT_PUBLIC_S3_BUCKET_URL` | ✅ | Hostname allowed for document image previews (`next/image`); the build doesn't need it, but previews won't load without it |
 | `NEXT_PUBLIC_SITE_URL` | — | Canonical origin for metadata, sitemap and structured data (defaults to `https://tallyhawk.vercel.app`) |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` / `NEXT_PUBLIC_BING_SITE_VERIFICATION` | — | Search Console / Bing Webmaster verification tokens |

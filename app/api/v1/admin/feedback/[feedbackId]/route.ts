@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { TriageUpdate } from "@/server/admin";
 import { audit } from "@/server/audit";
 import { getDb } from "@/server/db";
@@ -21,14 +21,14 @@ export const PATCH = route<Params<"feedbackId">>(async (request, ctx) => {
         ...(body.admin_note !== undefined ? { adminNote: body.admin_note || null } : {}),
         updatedAt: new Date(),
       })
-      .where(eq(feedback.id, feedbackId))
+      .where(and(eq(feedback.id, feedbackId), isNull(feedback.anonymizedAt)))
       .returning();
     if (!row) throw new ApiError(404, "Feedback not found.");
     await audit(tx, request, admin, {
       action: "feedback.update",
       targetType: "feedback",
       targetId: row.id,
-      targetLabel: `${row.type}: ${row.message.slice(0, 80)}`,
+      targetLabel: `${row.type}: ${(row.message ?? "").slice(0, 80)}`,
       details: { status: body.status, note_changed: body.admin_note !== undefined },
     });
     return row;
@@ -42,9 +42,9 @@ export const DELETE = route<Params<"feedbackId">>(async (request, ctx) => {
   const { feedbackId } = await ctx.params;
   const db = getDb();
   await db.transaction(async (tx) => {
-    const [row] = await tx.delete(feedback).where(eq(feedback.id, feedbackId)).returning();
+    const [row] = await tx.delete(feedback).where(and(eq(feedback.id, feedbackId), isNull(feedback.anonymizedAt))).returning();
     if (!row) throw new ApiError(404, "Feedback not found.");
-    await audit(tx, request, admin, { action: "feedback.delete", targetType: "feedback", targetId: row.id, targetLabel: `${row.type}: ${row.message.slice(0, 80)}` });
+    await audit(tx, request, admin, { action: "feedback.delete", targetType: "feedback", targetId: row.id, targetLabel: `${row.type}: ${(row.message ?? "").slice(0, 80)}` });
   });
   return noContent();
 });

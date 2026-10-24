@@ -11,6 +11,7 @@ import {
   unique,
   varchar,
 } from "drizzle-orm/pg-core";
+import { RETENTION } from "@/lib/retention";
 import type { TriageStatus } from "@/lib/support";
 
 // These tables mirror, column for column, the ones the former FastAPI/SQLModel backend created
@@ -215,7 +216,8 @@ export const feedback = pgTable(
     type: varchar("type")
       .notNull()
       .$defaultFn(() => "Suggestion"),
-    message: varchar("message").notNull(),
+    /** Null once anonymized (lib/retention.ts); the type, status and dates stay. */
+    message: varchar("message"),
     createdAt: naiveTimestamp("created_at")
       .notNull()
       .$defaultFn(() => new Date()),
@@ -224,8 +226,9 @@ export const feedback = pgTable(
     /** App path the feedback was sent from, e.g. "/app". */
     page: varchar("page"),
     updatedAt: naiveTimestamp("updated_at"),
+    anonymizedAt: naiveTimestamp("anonymized_at"),
   },
-  (t) => [index("ix_feedback_user_id").on(t.userId)]
+  (t) => [index("ix_feedback_user_id").on(t.userId), index("ix_feedback_created_at").on(t.createdAt)]
 );
 
 export const contactMessages = pgTable(
@@ -233,16 +236,18 @@ export const contactMessages = pgTable(
   {
     id: id(),
     userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
-    name: varchar("name").notNull(),
-    email: varchar("email").notNull(),
-    subject: varchar("subject").notNull(),
-    message: varchar("message").notNull(),
+    // Sender details and text are null once anonymized (lib/retention.ts); status and dates stay.
+    name: varchar("name"),
+    email: varchar("email"),
+    subject: varchar("subject"),
+    message: varchar("message"),
     status: varchar("status").$type<TriageStatus>().notNull().default("new"),
     adminNote: varchar("admin_note"),
     createdAt: naiveTimestamp("created_at")
       .notNull()
       .$defaultFn(() => new Date()),
     updatedAt: naiveTimestamp("updated_at"),
+    anonymizedAt: naiveTimestamp("anonymized_at"),
   },
   (t) => [index("ix_contactmessage_status").on(t.status), index("ix_contactmessage_created_at").on(t.createdAt)]
 );
@@ -262,17 +267,66 @@ export const auditLog = pgTable(
     createdAt: naiveTimestamp("created_at")
       .notNull()
       .$defaultFn(() => new Date()),
+    /** When the retention job removed the target and IP hash. */
+    anonymizedAt: naiveTimestamp("anonymized_at"),
   },
-  (t) => [index("ix_auditlog_created_at").on(t.createdAt), index("ix_auditlog_action").on(t.action)]
+  (t) => [index("ix_auditlog_created_at").on(t.createdAt), index("ix_auditlog_action").on(t.action), index("ix_auditlog_target_id").on(t.targetId)]
 );
 
-export const stripeEvents = pgTable("stripeevent", {
-  id: varchar("id").primaryKey(),
-  type: varchar("type").notNull(),
-  createdAt: naiveTimestamp("created_at")
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+/**
+ * What remains of a deleted account: who it was, who deleted it, and its Stripe subscription (kept up
+ * to date by the webhook after deletion). Never any documents or extracted data.
+ */
+export const deletedAccounts = pgTable(
+  "deletedaccount",
+  {
+    id: id(),
+    /** The deleted account's former id (no foreign key: that row is gone); null once anonymized. */
+    userId: varchar("user_id"),
+    /** The email; null once anonymized (lib/retention.ts). */
+    username: varchar("username"),
+    role: varchar("role").$type<AccountRole>().notNull(),
+    plan: varchar("plan"),
+    accountCreatedAt: timestamp("account_created_at", { mode: "date", withTimezone: true }),
+    deletedAt: naiveTimestamp("deleted_at")
+      .notNull()
+      .$defaultFn(() => new Date()),
+    deletedBy: varchar("deleted_by").$type<"self" | "admin">().notNull(),
+    deletedByAdminId: varchar("deleted_by_admin_id"),
+    deletedByAdminUsername: varchar("deleted_by_admin_username"),
+    /** From the usage ledger, which is never decremented: every document they ever processed. */
+    lifetimeDocuments: integer("lifetime_documents").notNull().default(0),
+    stripeCustomerId: varchar("stripe_customer_id"),
+    stripeSubscriptionId: varchar("stripe_subscription_id"),
+    subscriptionStatusAtDeletion: varchar("subscription_status_at_deletion"),
+    /** The latest status Stripe reported (deletion cancels a billable subscription, so usually "canceled"). */
+    subscriptionStatus: varchar("subscription_status"),
+    currentPeriodEnd: naiveTimestamp("current_period_end"),
+    /** When Tallyhawk stopped the subscription billing: at deletion, or later if one turned up. */
+    billingCancelledAt: naiveTimestamp("billing_cancelled_at"),
+    updatedAt: naiveTimestamp("updated_at"),
+    /** When the retention job removed the email, former id and Stripe ids. */
+    anonymizedAt: naiveTimestamp("anonymized_at"),
+  },
+  (t) => [
+    unique("ix_deletedaccount_user_id").on(t.userId),
+    index("ix_deletedaccount_deleted_at").on(t.deletedAt),
+    index("ix_deletedaccount_stripe_subscription_id").on(t.stripeSubscriptionId),
+    index("ix_deletedaccount_stripe_customer_id").on(t.stripeCustomerId),
+  ]
+);
+
+export const stripeEvents = pgTable(
+  "stripeevent",
+  {
+    id: varchar("id").primaryKey(),
+    type: varchar("type").notNull(),
+    createdAt: naiveTimestamp("created_at")
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("ix_stripeevent_created_at").on(t.createdAt)]
+);
 
 export const rateLimits = pgTable(
   "ratelimit",
@@ -295,12 +349,13 @@ export const passwordResetTokens = pgTable(
     token: varchar("token").notNull(),
     expiresAt: naiveTimestamp("expires_at")
       .notNull()
-      .$defaultFn(() => new Date(Date.now() + 60 * 60 * 1000)),
+      .$defaultFn(() => new Date(Date.now() + RETENTION.resetLinkMinutes * 60 * 1000)),
     used: boolean("used").notNull().default(false),
   },
   (t) => [
     index("ix_passwordresettoken_user_id").on(t.userId),
     unique("ix_passwordresettoken_token").on(t.token),
+    index("ix_passwordresettoken_expires_at").on(t.expiresAt),
   ]
 );
 
@@ -312,3 +367,4 @@ export type SubscriptionRow = typeof subscriptions.$inferSelect;
 export type FeedbackRow = typeof feedback.$inferSelect;
 export type ContactMessageRow = typeof contactMessages.$inferSelect;
 export type AuditLogRow = typeof auditLog.$inferSelect;
+export type DeletedAccountRow = typeof deletedAccounts.$inferSelect;

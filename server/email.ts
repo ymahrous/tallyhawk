@@ -1,5 +1,6 @@
 import "server-only";
 import { Resend } from "resend";
+import { RETENTION, period } from "@/lib/retention";
 
 function resetEmailHtml(resetUrl: string): string {
   return `
@@ -15,7 +16,7 @@ function resetEmailHtml(resetUrl: string): string {
         </a>
       </div>
       <p style="color: #888; font-size: 14px;">
-        If you didn't request this, you can safely ignore this email. This link expires in 1 hour.
+        If you didn't request this, you can safely ignore this email. This link expires in ${period(RETENTION.resetLinkMinutes, "minute")} and works once.
       </p>
     </div>`;
 }

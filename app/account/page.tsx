@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { changePassword, deleteAccount, exportTaxSummary, logoutEverywhere, openBillingPortal } from "@/lib/api";
+import { changePassword, exportTaxSummary, logoutEverywhere, openBillingPortal } from "@/lib/api";
 import { usePlan } from "../providers/PlanContext";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { useSettings } from "@/app/providers/SettingsContext";
@@ -11,6 +11,9 @@ import { logout, decodeToken, disconnectQuickBooks } from "@/lib/api";
 import { useAuthGuard } from "@/lib/useAuthGuard";
 import { SUPPORTED_CURRENCIES, CurrencyCode } from "@/lib/currency";
 import { PRODUCT_FACTS } from "@/lib/site";
+import DeleteAccountSection from "@/components/account/DeleteAccountSection";
+import InstallAppButton from "@/components/pwa/InstallAppButton";
+import { useInstallApp } from "@/lib/useInstallApp";
 import { validatePassword } from "@/lib/validation";
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -157,6 +160,7 @@ export default function AccountPage() {
   const [isUpdatingCurrency, setIsUpdatingCurrency] = useState(false);
 
   const { baseCurrency, createdAt, updateBaseCurrency } = useSettings();
+  const installState = useInstallApp();
   // From the account itself (GET /auth/settings), not the session token: a token's issue time is
   // when you last signed in, not when you joined.
   const memberSince = createdAt
@@ -288,27 +292,6 @@ export default function AccountPage() {
       alert("Unable to initiate QuickBooks connection.");
     } finally {
       setIsConnectingQb(false);
-    }
-  };
-
-  // ── Danger zone ──
-  const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
-  const DELETE_PHRASE = "delete my account";
-
-  const handleDeleteAccount = async () => {
-    if (deleteConfirm !== DELETE_PHRASE) return;
-    setIsDeletingAccount(true);
-    setDeleteError("");
-    try {
-      await deleteAccount();
-      logout();
-      router.push("/");
-    } catch (err: unknown) {
-      setDeleteError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setIsDeletingAccount(false);
     }
   };
 
@@ -598,6 +581,26 @@ export default function AccountPage() {
           </div>
         </SectionCard>
 
+        {/* Install as an app (optional) */}
+        <SectionCard
+          title="Tallyhawk App"
+          description="Optionally install Tallyhawk on your phone or computer to open it from your home screen and snap receipts with your camera."
+          isDark={isDark}
+        >
+          {installState === "installed" ? (
+            <p role="status" className="text-sm text-emerald-500">You're using the installed app.</p>
+          ) : installState === "unavailable" ? (
+            <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+              This browser can't install web apps. Open Tallyhawk in Chrome or Edge, or in Safari on iPhone, iPad or Mac, to install it.
+            </p>
+          ) : (
+            <InstallAppButton
+              label="Install Tallyhawk"
+              className={`${primaryBtnClass} text-sm font-medium px-4 py-2 rounded-lg transition-colors`}
+            />
+          )}
+        </SectionCard>
+
         {/* Session Info */}
         <SectionCard
           title="Current Session"
@@ -688,52 +691,7 @@ export default function AccountPage() {
           </form>
         </SectionCard>
 
-        {/* Danger Zone */}
-        <div className="rounded-2xl border border-red-500/30 p-8">
-          <div className="mb-6">
-            <h2 className="text-base font-semibold text-red-500">Danger Zone</h2>
-            <p className={`text-sm mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-              Permanently delete your account and all associated documents. This cannot be undone.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className={`text-xs font-medium uppercase tracking-wider ${
-                isDark ? "text-gray-400" : "text-gray-500"
-              }`}>
-                Type <span className="text-red-400 font-mono normal-case tracking-normal">
-                  {DELETE_PHRASE}
-                </span> to confirm
-              </label>
-              <input
-                type="text"
-                value={deleteConfirm}
-                onChange={(e) => setDeleteConfirm(e.target.value)}
-                placeholder={DELETE_PHRASE}
-                className={`w-full text-sm px-4 py-3 rounded-xl border outline-none transition-colors ${
-                  isDark
-                    ? "bg-white/5 border-red-500/20 text-white focus:border-red-500 placeholder-gray-600"
-                    : "bg-white border-red-200 text-gray-900 focus:border-red-500 placeholder-gray-400"
-                }`}
-              />
-            </div>
-
-            {deleteError && (
-              <p role="alert" className="text-sm text-red-500 bg-red-500/10 px-4 py-2 rounded-lg">
-                {deleteError}
-              </p>
-            )}
-
-            <button
-              onClick={handleDeleteAccount}
-              disabled={deleteConfirm !== DELETE_PHRASE || isDeletingAccount}
-              className="w-full bg-red-600 hover:bg-red-500 disabled:bg-red-900 disabled:text-red-700 disabled:cursor-not-allowed text-white py-3 rounded-xl text-sm font-semibold transition-all"
-            >
-              {isDeletingAccount ? "Deleting..." : "Permanently Delete Account"}
-            </button>
-          </div>
-        </div>
+        <DeleteAccountSection isDark={isDark} />
 
       </div>
     </div>

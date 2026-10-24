@@ -3,12 +3,13 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { decodeAccessToken } from "@/server/auth";
 import type { Db } from "@/server/db";
-import { auditLog, contactMessages, documents, extractions, feedback, subscriptions, users } from "@/server/db/schema";
+import { auditLog, contactMessages, deletedAccounts, documents, extractions, feedback, subscriptions, users } from "@/server/db/schema";
 import { call, createAdmin, createDocument, createTestDb, createUser, flushBackground, resetTestDb } from "@/test/server";
 import { GET as listAdmins, POST as createAdminRoute } from "./admins/route";
 import { DELETE as deleteAdmin, PATCH as updateAdmin } from "./admins/[adminId]/route";
 import { GET as analytics } from "./analytics/route";
 import { GET as auditLogRoute } from "./audit-log/route";
+import { GET as listDeleted } from "./deleted-accounts/route";
 import { GET as listContact } from "./contact/route";
 import { DELETE as deleteContact, PATCH as updateContact } from "./contact/[messageId]/route";
 import { GET as listDocuments } from "./documents/route";
@@ -68,7 +69,7 @@ describe("access", () => {
 
   it("rejects customers (403) and missing or invalid sessions (401) on every admin route", async () => {
     const { token } = await createUser(db, { username: "ada@example.com" });
-    for (const handler of [overview, analytics, listUsers, listAdmins, listFeedback, listContact, listDocuments, auditLogRoute, me]) {
+    for (const handler of [overview, analytics, listUsers, listAdmins, listFeedback, listContact, listDocuments, auditLogRoute, listDeleted, me]) {
       expect((await call(handler, "GET", "/admin/x", { token })).status).toBe(403);
       expect((await call(handler, "GET", "/admin/x")).status).toBe(401);
     }
@@ -228,6 +229,16 @@ describe("customers", () => {
     expect(storage.deleteFromStorage).toHaveBeenCalledWith("a.pdf");
     expect(await db.select().from(users).where(eq(users.id, ada.user.id))).toEqual([]);
     expect((await db.select().from(auditLog))[0]).toMatchObject({ action: "user.delete", targetLabel: "ada@example.com" });
+    expect((await db.select().from(deletedAccounts))[0]).toMatchObject({
+      userId: ada.user.id,
+      deletedBy: "admin",
+      deletedByAdminId: admin.user.id,
+      deletedByAdminUsername: "admin@tallyhawk.test",
+      plan: "pro",
+      stripeSubscriptionId: "sub_1",
+      subscriptionStatusAtDeletion: "active",
+      subscriptionStatus: "canceled",
+    });
   });
 });
 
@@ -267,6 +278,7 @@ describe("admins", () => {
     expect((await call(overview, "GET", "/admin/overview", { token: other.token })).status).toBe(401);
 
     expect((await call(deleteAdmin, "DELETE", "/admin/admins/x", on(other.user.id))).status).toBe(204);
+    expect((await db.select().from(deletedAccounts))[0]).toMatchObject({ username: "other@tallyhawk.test", role: "admin", plan: null, deletedBy: "admin", deletedByAdminId: admin.user.id });
     expect((await call(deleteAdmin, "DELETE", "/admin/admins/x", on("missing"))).status).toBe(404);
     expect(await auditActions()).toEqual(["admin.delete", "admin.reactivate", "admin.suspend"]);
   });
@@ -305,6 +317,54 @@ describe("feedback and bug reports", () => {
     expect((await call(deleteFeedback, "DELETE", "/admin/feedback/x", p)).status).toBe(204);
     expect((await call(deleteFeedback, "DELETE", "/admin/feedback/x", p)).status).toBe(404);
     expect(await auditActions()).toEqual(["feedback.delete", "feedback.update", "feedback.update"]);
+  });
+});
+
+describe("anonymized entries", () => {
+  it("keeps anonymized support messages out of the inboxes and read-only, but counted", async () => {
+    const anonymized = new Date("2026-06-01T00:00:00Z");
+    const [oldFeedback] = await db
+      .insert(feedback)
+      .values({ type: "Bug", message: null, status: "archived", anonymizedAt: anonymized, createdAt: new Date("2025-01-01T00:00:00Z") })
+      .returning();
+    await db.insert(feedback).values({ type: "Bug", message: "live" });
+    const [oldContact] = await db
+      .insert(contactMessages)
+      .values({ name: null, email: null, subject: null, message: null, status: "archived", anonymizedAt: anonymized })
+      .returning();
+
+    const inbox = await call(listFeedback, "GET", "/admin/feedback", { token: admin.token });
+    expect(inbox.json.results.map((f: { message: string }) => f.message)).toEqual(["live"]);
+    expect(inbox.json.status_counts).toEqual({ new: 1 });
+    expect((await call(listContact, "GET", "/admin/contact", { token: admin.token })).json.total).toBe(0);
+
+    const on = (key: string, id: string) => ({ token: admin.token, params: params(key, id) });
+    expect((await call(updateFeedback, "PATCH", "/admin/feedback/x", { ...on("feedbackId", oldFeedback.id), body: { status: "new" } })).status).toBe(404);
+    expect((await call(deleteContact, "DELETE", "/admin/contact/x", on("messageId", oldContact.id))).status).toBe(404);
+
+    // Anonymized rows still count towards the totals and the type breakdown.
+    expect((await call(overview, "GET", "/admin/overview", { token: admin.token })).json.feedback).toMatchObject({ total: 2, new: 1 });
+  });
+
+  it("lists anonymized deletion records, still knowing they had a subscription", async () => {
+    await db.insert(deletedAccounts).values({
+      userId: null,
+      username: null,
+      role: "user",
+      plan: "pro",
+      deletedBy: "self",
+      subscriptionStatusAtDeletion: "active",
+      subscriptionStatus: "canceled",
+      anonymizedAt: new Date(),
+    });
+    const res = await call(listDeleted, "GET", "/admin/deleted-accounts?subscription=true", { token: admin.token });
+    expect(res.json.total).toBe(1);
+    expect(res.json.results[0]).toMatchObject({
+      username: null,
+      user_id: null,
+      subscription: { stripe_customer_id: null, stripe_subscription_id: null, status_at_deletion: "active", status: "canceled" },
+    });
+    expect(res.json.results[0].anonymized_at).not.toBeNull();
   });
 });
 
@@ -363,6 +423,55 @@ describe("documents", () => {
     await flushBackground();
     expect(pipeline.processDocument.mock.calls.map((c) => (c as unknown[])[0])).toEqual([failed.doc.id, stuck.doc.id]);
     expect(await auditActions()).toEqual(["document.reprocess", "document.reprocess"]);
+  });
+});
+
+describe("deleted accounts", () => {
+  it("lists deletion records newest first, filterable and searchable, and counts churn", async () => {
+    await db.insert(deletedAccounts).values([
+      { userId: "u-old", username: "old@example.com", role: "user", plan: "free", deletedBy: "self", deletedAt: new Date(Date.now() - 60 * 86400_000) },
+      {
+        userId: "u-pro",
+        username: "pro@example.com",
+        role: "user",
+        plan: "pro",
+        deletedBy: "admin",
+        deletedByAdminId: admin.user.id,
+        deletedByAdminUsername: "admin@tallyhawk.test",
+        stripeCustomerId: "cus_9",
+        stripeSubscriptionId: "sub_9",
+        subscriptionStatusAtDeletion: "active",
+        subscriptionStatus: "canceled",
+        billingCancelledAt: new Date(),
+        lifetimeDocuments: 40,
+      },
+      { userId: "a-x", username: "ex-admin@tallyhawk.test", role: "admin", deletedBy: "admin", deletedAt: new Date(Date.now() - 86400_000) },
+    ]);
+
+    const all = await call(listDeleted, "GET", "/admin/deleted-accounts", { token: admin.token });
+    expect(all.json.total).toBe(3);
+    expect(all.json.results[0]).toMatchObject({
+      username: "pro@example.com",
+      deleted_by: "admin",
+      deleted_by_admin_username: "admin@tallyhawk.test",
+      lifetime_documents: 40,
+      subscription: { stripe_subscription_id: "sub_9", status_at_deletion: "active", status: "canceled" },
+    });
+    expect(all.json.results[2].subscription).toBeNull();
+
+    const q = async (query: string) => (await call(listDeleted, "GET", `/admin/deleted-accounts?${query}`, { token: admin.token })).json;
+    expect((await q("deleted_by=self")).results.map((r: { username: string }) => r.username)).toEqual(["old@example.com"]);
+    expect((await q("role=admin")).total).toBe(1);
+    expect((await q("subscription=true")).total).toBe(1);
+    expect((await q("search=sub_9")).total).toBe(1);
+    expect((await q("search=OLD@")).total).toBe(1);
+    expect((await call(listDeleted, "GET", "/admin/deleted-accounts?deleted_by=robot", { token: admin.token })).status).toBe(422);
+
+    const stats = await call(overview, "GET", "/admin/overview", { token: admin.token });
+    expect(stats.json.deleted_accounts).toEqual({ total: 2, last_30d: 1, self_service_last_30d: 0, with_subscription_last_30d: 1 });
+    const trend = await call(analytics, "GET", "/admin/analytics?days=7", { token: admin.token });
+    expect(trend.json.totals.deletions).toBe(1);
+    expect(trend.json.series.at(-1).deletions).toBe(1);
   });
 });
 

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { TriageUpdate } from "@/server/admin";
 import { audit } from "@/server/audit";
 import { getDb } from "@/server/db";
@@ -21,7 +21,7 @@ export const PATCH = route<Params<"messageId">>(async (request, ctx) => {
         ...(body.admin_note !== undefined ? { adminNote: body.admin_note || null } : {}),
         updatedAt: new Date(),
       })
-      .where(eq(contactMessages.id, messageId))
+      .where(and(eq(contactMessages.id, messageId), isNull(contactMessages.anonymizedAt)))
       .returning();
     if (!row) throw new ApiError(404, "Message not found.");
     await audit(tx, request, admin, {
@@ -41,7 +41,7 @@ export const DELETE = route<Params<"messageId">>(async (request, ctx) => {
   const { messageId } = await ctx.params;
   const db = getDb();
   await db.transaction(async (tx) => {
-    const [row] = await tx.delete(contactMessages).where(eq(contactMessages.id, messageId)).returning();
+    const [row] = await tx.delete(contactMessages).where(and(eq(contactMessages.id, messageId), isNull(contactMessages.anonymizedAt))).returning();
     if (!row) throw new ApiError(404, "Message not found.");
     await audit(tx, request, admin, { action: "contact.delete", targetType: "contact", targetId: row.id, targetLabel: `${row.email}: ${row.subject}` });
   });

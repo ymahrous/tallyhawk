@@ -10,6 +10,7 @@ import { StatusTabs, TriageItem } from "@/components/admin/Triage";
 import { useAdminData } from "@/components/admin/useAdminData";
 import { deleteAdminFeedback, listAdminFeedback, updateAdminFeedback, type AdminFeedback } from "@/lib/admin-api";
 import { FEEDBACK_TYPES, type FeedbackType, type TriageStatus } from "@/lib/support";
+import { RETENTION, period } from "@/lib/retention";
 
 const PAGE_SIZE = 25;
 
@@ -27,7 +28,7 @@ export default function AdminFeedbackPage() {
 
   return (
     <>
-      <AdminHeader title="Feedback & bug reports" description="Everything sent with the feedback button. Bug reports are feedback of type Bug." />
+      <AdminHeader title="Feedback & bug reports" description={`Everything sent with the feedback button. Bug reports are feedback of type Bug. Text and sender details are removed ${period(RETENTION.supportMessageDays, "day")} after it arrives.`} />
       <div className="mb-4 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <select
@@ -51,7 +52,7 @@ export default function AdminFeedbackPage() {
               <TriageItem
                 key={f.id}
                 id={f.id}
-                title={f.message}
+                title={f.message ?? ""}
                 status={f.status}
                 note={f.admin_note}
                 createdAt={f.created_at}

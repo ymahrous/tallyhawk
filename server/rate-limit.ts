@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac } from "node:crypto";
 import { lt, sql } from "drizzle-orm";
+import { RETENTION } from "@/lib/retention";
 import { getDb } from "./db";
 import { rateLimits } from "./db/schema";
 import { ApiError } from "./http";
@@ -57,9 +58,9 @@ export async function rateLimit(bucket: string, identifier: string, { limit, win
     })
     .returning({ count: rateLimits.count, windowStart: rateLimits.windowStart });
 
-  // Occasionally sweep counters whose window ended long ago.
+  // Occasionally sweep counters whose window ended long ago (the daily retention job does too).
   if (Math.random() < 0.01) {
-    await db.delete(rateLimits).where(lt(rateLimits.windowStart, new Date(now.getTime() - 24 * HOUR * 1000)));
+    await db.delete(rateLimits).where(lt(rateLimits.windowStart, new Date(now.getTime() - RETENTION.rateLimitHours * HOUR * 1000)));
   }
 
   if (row.count > limit) {

@@ -15,6 +15,7 @@ import { signIn } from "@/test/auth";
 import { FEATURES, HOW_IT_WORKS, PRICING_FAQ, PRODUCT_FAQ } from "@/lib/marketing";
 import { PLAN_COMPARISON } from "@/lib/pricing";
 import { SITE_SUMMARY } from "@/lib/site";
+import { RETENTION } from "@/lib/retention";
 
 // next/font is a compile-time transform; outside Next it isn't callable.
 vi.mock("next/font/google", () => ({
@@ -215,6 +216,44 @@ describe("legal pages", () => {
     renderWithProviders(<Page />);
     expect(screen.getByRole("heading", { level: 1, name: title })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: lastSection })).toBeInTheDocument();
+  });
+
+  it("states the retention schedule the retention job enforces", () => {
+    renderWithProviders(<PrivacyPolicy />);
+    const retention = screen.getByRole("heading", { level: 2, name: "5. Data Retention" }).parentElement!;
+    expect(retention).toHaveTextContent("only for the minimum period each purpose needs");
+    expect(retention).toHaveTextContent("we anonymize it");
+    expect(retention).toHaveTextContent(`After ${RETENTION.deletionRecordIdentifiersDays} days, longer than the usual window for disputing a card payment, the email address, account ID and Stripe identifiers are removed and only the anonymized record is kept`);
+    expect(retention).toHaveTextContent(`Contact form messages and feedback: after ${RETENTION.supportMessageDays} days`);
+    expect(retention).toHaveTextContent(`after ${RETENTION.auditLogIdentifiersDays} days, or when your deletion record is anonymized if that is sooner`);
+    expect(retention).toHaveTextContent(`deleted after ${RETENTION.rateLimitHours} hour`);
+    expect(retention).toHaveTextContent(`work for ${RETENTION.resetLinkMinutes} minutes`);
+    expect(retention).toHaveTextContent(`from backups within ${RETENTION.backupDays} days`);
+    // Deletion no longer offers refunds, so the record doesn't claim to be kept for them.
+    expect(retention).not.toHaveTextContent(/handle refunds/i);
+    const rights = screen.getByRole("heading", { level: 2, name: /4\. Your Data Rights/ }).parentElement!;
+    expect(rights).toHaveTextContent(`anonymized after ${RETENTION.deletionRecordIdentifiersDays} days`);
+    expect(rights).toHaveTextContent("Deleting your account does not entitle you to a refund");
+  });
+
+  it("says in the Terms that deleting an account is final and never refunded", () => {
+    renderWithProviders(<TermsOfService />);
+    const termination = screen.getByRole("heading", { level: 2, name: "12. Termination" }).parentElement!;
+    expect(termination).toHaveTextContent("you will not be entitled to a refund, credit or other compensation for any payment made before the deletion");
+    expect(termination).toHaveTextContent("cannot be restored");
+    expect(termination).toHaveTextContent("kept and then anonymized as described in the Data Retention section of our Privacy Policy");
+    const billing = screen.getByRole("heading", { level: 2, name: "4. Subscriptions and Billing" }).parentElement!;
+    expect(billing).toHaveTextContent("deleting your account does not entitle you to a refund (see Section 12)");
+    // Only a monthly plan exists (regression: the Terms promised annual billing too).
+    expect(billing).not.toHaveTextContent("annual");
+  });
+
+  it("keeps the FAQs consistent with the Terms on refunds", () => {
+    const deletion = PRODUCT_FAQ.find((f) => f.question === "Can I delete my data?")!;
+    const cancel = PRICING_FAQ.find((f) => f.question === "Can I cancel Pro at any time?")!;
+    expect(deletion.answer).toContain("doesn't entitle you to a refund");
+    expect(deletion.answer).toContain(`kept for ${RETENTION.deletionRecordIdentifiersDays} days`);
+    expect(cancel.answer).toContain("deleting your account doesn't entitle you to a refund");
   });
 });
 

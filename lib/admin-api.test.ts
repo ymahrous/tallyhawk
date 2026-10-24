@@ -22,6 +22,7 @@ describe("admin API client", () => {
       "GET /admin/contact": { json: { ...PAGE, status_counts: {} } },
       "GET /admin/documents": { json: PAGE },
       "GET /admin/audit-log": { json: PAGE },
+      "GET /admin/deleted-accounts": { json: PAGE },
     });
 
     await admin.getAdminMe();
@@ -34,6 +35,7 @@ describe("admin API client", () => {
     await admin.listAdminContact({ search: "refund" });
     await admin.listAdminDocuments({ flagged: false, status: "FAILED" });
     await admin.getAuditLog({ area: "user", limit: 50 });
+    await admin.listDeletedAccounts({ deleted_by: "self", subscription: true });
 
     const search = (path: string) => server.callsTo(`GET ${path}`)[0].url.search;
     expect(search("/admin/analytics")).toBe("?days=30");
@@ -41,6 +43,7 @@ describe("admin API client", () => {
     expect(search("/admin/feedback")).toBe("?type=Bug&status=new");
     expect(search("/admin/documents")).toBe("?status=FAILED");
     expect(search("/admin/audit-log")).toBe("?area=user&limit=50");
+    expect(search("/admin/deleted-accounts")).toBe("?deleted_by=self&subscription=true");
     expect(server.requests.every((r) => r.headers.get("Authorization")?.startsWith("Bearer "))).toBe(true);
   });
 

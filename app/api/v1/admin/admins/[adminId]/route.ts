@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import { recordDeletion } from "@/server/accounts";
 import { findAdmin } from "@/server/admin";
 import { audit } from "@/server/audit";
 import { getDb } from "@/server/db";
@@ -44,7 +45,7 @@ export const PATCH = route<Params<"adminId">>(async (request, ctx) => {
   return json({ ...serializeAccount(updated), is_you: false });
 });
 
-/** Removes another admin account. */
+/** Removes another admin account, keeping a deletion record like a customer's. */
 export const DELETE = route<Params<"adminId">>(async (request, ctx) => {
   const me = await getCurrentAdmin(request);
   const { adminId } = await ctx.params;
@@ -53,6 +54,7 @@ export const DELETE = route<Params<"adminId">>(async (request, ctx) => {
   guardChange(me, target, "delete");
 
   await db.transaction(async (tx) => {
+    await recordDeletion(tx, target, { by: "admin", admin: me });
     await tx.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, target.id));
     await tx.delete(users).where(and(eq(users.id, target.id), eq(users.role, "admin")));
     await audit(tx, request, me, { action: "admin.delete", targetType: "admin", targetId: target.id, targetLabel: target.username });

@@ -46,7 +46,7 @@ export default function TermsOfService() {
             {
               id: "4",
               title: "4. Subscriptions and Billing",
-              content: "By subscribing to the Tallyhawk Pro tier, you agree to pay the applicable subscription fees via our payment processor (Stripe). All prices are listed in USD. Subscriptions renew automatically at the end of the billing cycle (monthly or annual). You may cancel your subscription at any time; access to Pro features will continue until the end of the current billing period. No partial refunds are provided for unused portions of a billing cycle.",
+              content: "By subscribing to the Tallyhawk Pro tier, you agree to pay the applicable subscription fees via our payment processor (Stripe). All prices are listed in USD. Subscriptions are billed monthly and renew automatically at the end of each billing cycle. You may cancel your subscription at any time from Account → Manage billing; access to Pro features will continue until the end of the current billing period. Except where the law requires otherwise, no partial refunds are provided for unused portions of a billing cycle, and deleting your account does not entitle you to a refund (see Section 12).",
             },
             {
               id: "5",
@@ -86,7 +86,7 @@ export default function TermsOfService() {
             {
               id: "12",
               title: "12. Termination",
-              content: "We reserve the right to suspend or terminate your account and access to the Service at our sole discretion, without prior notice, for conduct that we determine violates these Terms, is harmful to other users, or disrupts the Service. Upon termination, your right to use the Service will immediately cease. Provisions that by their nature should survive termination shall remain in effect.",
+              content: "We reserve the right to suspend or terminate your account and access to the Service at our sole discretion, without prior notice, for conduct that we determine violates these Terms, is harmful to other users, or disrupts the Service. Upon termination, your right to use the Service will immediately cease. \n\nYou may delete your account at any time from Account Settings. Deleting your account, or our deleting it on termination, is permanent: it immediately cancels any Pro subscription, and you will not be entitled to a refund, credit or other compensation for any payment made before the deletion, including the unused part of the current billing period, except where the law requires one. Your account, documents and data cannot be restored. A minimal record is kept and then anonymized as described in the Data Retention section of our Privacy Policy. \n\nProvisions that by their nature should survive termination shall remain in effect.",
             },
             {
               id: "13",

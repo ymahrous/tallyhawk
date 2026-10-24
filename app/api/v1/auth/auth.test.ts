@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAccessToken, decodeAccessToken, hashResetToken, verifyPassword } from "@/server/auth";
 import type { Db } from "@/server/db";
-import { documents, extractions, passwordResetTokens, quickbooksConnections, users, vendors } from "@/server/db/schema";
+import { deletedAccounts, documents, extractions, passwordResetTokens, quickbooksConnections, users, vendors } from "@/server/db/schema";
 import { call, createAdmin, createDocument, createTestDb, createUser, flushBackground, resetTestDb, stubFetch } from "@/test/server";
 import { POST as changePassword } from "./change-password/route";
 import { DELETE as deleteAccount } from "./delete/route";
@@ -259,6 +259,11 @@ describe("delete account", () => {
     expect(await db.select().from(documents).where(eq(documents.id, doc.id))).toEqual([]);
     expect(await db.select().from(extractions).where(eq(extractions.documentId, doc.id))).toEqual([]);
     expect(await db.select().from(documents)).toHaveLength(1); // the other user's document survives
+
+    // Only the deletion record remains, with no subscription to report.
+    expect(await db.select().from(deletedAccounts)).toEqual([
+      expect.objectContaining({ userId: user.id, username: "ada@example.com", role: "user", plan: "free", deletedBy: "self", lifetimeDocuments: 0, stripeSubscriptionId: null, subscriptionStatus: null }),
+    ]);
   });
 
   it("keeps the database intact if file deletion fails", async () => {
@@ -268,6 +273,7 @@ describe("delete account", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     expect((await call(deleteAccount, "DELETE", "/auth/delete", { token })).status).toBe(500);
     expect(await db.select().from(users)).toHaveLength(1);
+    expect(await db.select().from(deletedAccounts)).toEqual([]);
   });
 });
 

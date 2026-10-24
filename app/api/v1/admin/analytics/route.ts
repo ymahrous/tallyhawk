@@ -2,14 +2,14 @@ import { and, count, desc, eq, gte, isNotNull, lt, sql, type SQL } from "drizzle
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { dayRange } from "@/server/admin";
 import { getDb } from "@/server/db";
-import { contactMessages, documents, extractions, feedback, users } from "@/server/db/schema";
+import { contactMessages, deletedAccounts, documents, extractions, feedback, users } from "@/server/db/schema";
 import { getCurrentAdmin, intQuery, json, route } from "@/server/http";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Product analytics for the admin dashboard over the last `days` (7–365, default 30): a daily
- * series of signups, uploads, failures and support volume, plus breakdowns of documents, plans,
+ * series of signups, customer deletions, uploads, failures and support volume, plus breakdowns of documents, plans,
  * categories and currencies. Days are UTC calendar days; days with nothing are reported as 0.
  */
 export const GET = route(async (request) => {
@@ -28,8 +28,9 @@ export const GET = route(async (request) => {
     return new Map(rows.map((r) => [r.day, r.n]));
   };
 
-  const [signups, uploads, failed, feedbackPerDay, contactPerDay] = await Promise.all([
+  const [signups, deletions, uploads, failed, feedbackPerDay, contactPerDay] = await Promise.all([
     perDay(users, users.createdAt, eq(users.role, "user"), true),
+    perDay(deletedAccounts, deletedAccounts.deletedAt, eq(deletedAccounts.role, "user")),
     perDay(documents, documents.createdAt),
     perDay(documents, documents.createdAt, eq(documents.status, "FAILED")),
     perDay(feedback, feedback.createdAt),
@@ -39,6 +40,7 @@ export const GET = route(async (request) => {
   const series = range.map((date) => ({
     date,
     signups: signups.get(date) ?? 0,
+    deletions: deletions.get(date) ?? 0,
     documents: uploads.get(date) ?? 0,
     failed: failed.get(date) ?? 0,
     feedback: feedbackPerDay.get(date) ?? 0,
@@ -77,8 +79,13 @@ export const GET = route(async (request) => {
   ]);
 
   const totals = series.reduce(
-    (acc, d) => ({ signups: acc.signups + d.signups, documents: acc.documents + d.documents, failed: acc.failed + d.failed }),
-    { signups: 0, documents: 0, failed: 0 }
+    (acc, d) => ({
+      signups: acc.signups + d.signups,
+      deletions: acc.deletions + d.deletions,
+      documents: acc.documents + d.documents,
+      failed: acc.failed + d.failed,
+    }),
+    { signups: 0, deletions: 0, documents: 0, failed: 0 }
   );
   // Same-length window just before this one, for "vs previous period".
   const previousSince = new Date(since.getTime() - days * DAY_MS);
