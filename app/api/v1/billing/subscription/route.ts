@@ -1,19 +1,28 @@
-import { eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
-import { subscriptions } from "@/server/db/schema";
+import { subscriptionOf } from "@/server/billing";
 import { getCurrentUser, json, route } from "@/server/http";
 
 export const GET = route(async (request) => {
   const user = await getCurrentUser(request);
-  const [sub] = await getDb().select().from(subscriptions).where(eq(subscriptions.userId, user.id)).limit(1);
+  const sub = await subscriptionOf(getDb(), user.id);
 
-  if (!sub || sub.status !== "active") {
-    return json({ plan: user.plan, status: "inactive", current_period_end: null, last_renewal_date: null });
+  if (!sub || sub.status === "inactive") {
+    return json({
+      plan: user.plan,
+      status: "inactive",
+      current_period_end: null,
+      last_renewal_date: null,
+      cancel_at_period_end: false,
+      can_manage: Boolean(sub?.stripeCustomerId),
+    });
   }
   return json({
     plan: user.plan,
     status: sub.status,
     current_period_end: sub.currentPeriodEnd?.toISOString() ?? null,
-    last_renewal_date: sub.updatedAt.toISOString(),
+    // The start of the current billing period is when it last renewed (or began).
+    last_renewal_date: (sub.currentPeriodStart ?? sub.updatedAt).toISOString(),
+    cancel_at_period_end: sub.cancelAtPeriodEnd,
+    can_manage: Boolean(sub.stripeCustomerId),
   });
 });

@@ -1,28 +1,36 @@
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
+import { enumQuery, pageOf, paged, searchFilter } from "@/server/admin";
 import { getDb } from "@/server/db";
 import { feedback, users } from "@/server/db/schema";
-import { getCurrentAdmin, intQuery, json, route } from "@/server/http";
+import { getCurrentAdmin, json, route } from "@/server/http";
+import { serializeFeedback } from "@/server/serializers";
+import { FEEDBACK_TYPES, TRIAGE_STATUSES } from "@/lib/support";
 
+/** Feedback and bug reports (`type=Bug`), newest first, with the author when they were signed in. */
 export const GET = route(async (request) => {
   await getCurrentAdmin(request);
   const url = new URL(request.url);
-  const limit = intQuery(url, "limit", { min: 1, max: 200, fallback: 25 })!;
-  const offset = intQuery(url, "offset", { min: 0, fallback: 0 })!;
+  const page = pageOf(url);
+  const type = enumQuery(url, "type", FEEDBACK_TYPES);
+  const status = enumQuery(url, "status", TRIAGE_STATUSES);
   const db = getDb();
 
-  const [{ total }] = await db.select({ total: count() }).from(feedback);
+  const base = and(type ? eq(feedback.type, type) : undefined, searchFilter(url, [feedback.message]));
+  const filter = and(base, status ? eq(feedback.status, status) : undefined);
+  const [{ total }] = await db.select({ total: count() }).from(feedback).where(filter);
   const rows = await db
-    .select({ id: feedback.id, type: feedback.type, message: feedback.message, createdAt: feedback.createdAt, username: users.username })
+    .select({ feedback, username: users.username })
     .from(feedback)
     .leftJoin(users, eq(users.id, feedback.userId))
+    .where(filter)
     .orderBy(desc(feedback.createdAt))
-    .limit(limit)
-    .offset(offset);
+    .limit(page.limit)
+    .offset(page.offset);
+  // Per-status counts under the other filters, for the inbox tabs.
+  const counts = await db.select({ status: feedback.status, n: count() }).from(feedback).where(base).groupBy(feedback.status);
 
   return json({
-    total,
-    limit,
-    offset,
-    results: rows.map((f) => ({ id: f.id, type: f.type, message: f.message, created_at: f.createdAt.toISOString(), username: f.username })),
+    ...paged(total, page, rows.map((r) => serializeFeedback(r.feedback, r.username))),
+    status_counts: Object.fromEntries(counts.map((c) => [c.status, c.n])),
   });
 });

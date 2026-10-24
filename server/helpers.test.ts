@@ -4,7 +4,7 @@ import { detectMimeType, parseModelJson } from "./ai";
 import { effectiveDate, parseAmount, parseAmountOr, parseInvoiceDate, reliableAmount } from "./amounts";
 import { convertCurrency, round, VALID_CURRENCIES } from "./currency";
 import { qbAccountFor, toQbDate } from "./quickbooks";
-import { money, toCsv } from "./tax-summary";
+import { escapeFormula, money, toCsv } from "./tax-summary";
 import { currentMonth } from "./usage";
 import { stubFetch } from "@/test/server";
 
@@ -146,5 +146,16 @@ describe("CSV output", () => {
     expect(money(1234.5)).toBe("1,234.50");
     expect(money(-0.5)).toBe("-0.50");
     expect(toCsv([["a", "1,234.50", 'say "hi"'], []])).toBe('a,"1,234.50","say ""hi"""\r\n\r\n');
+  });
+
+  it("neutralises spreadsheet formulas from extracted text (CSV injection)", () => {
+    for (const payload of ["=HYPERLINK(\"http://evil.test\")", "+cmd|' /C calc'!A0", "-2+3", "@SUM(A1)", "\tx"]) {
+      expect(escapeFormula(payload)).toBe(`'${payload}`);
+    }
+    // Real numbers, including negative amounts, are untouched.
+    expect(escapeFormula("-12.50")).toBe("-12.50");
+    expect(escapeFormula("-1,234.50")).toBe("-1,234.50");
+    expect(escapeFormula("Acme =Corp")).toBe("Acme =Corp");
+    expect(toCsv([["=1+1", 5]])).toBe("'=1+1,5\r\n");
   });
 });

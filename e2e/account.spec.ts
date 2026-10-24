@@ -1,4 +1,4 @@
-import { test, expect, accountRoutes } from "./support/fixtures";
+import { test, expect, accountRoutes, makeToken } from "./support/fixtures";
 import { STRIPE_CHECKOUT_URL } from "./support/constants";
 
 test.describe("account, billing and analytics", () => {
@@ -38,6 +38,27 @@ test.describe("account, billing and analytics", () => {
 
     await expect(page).toHaveURL(STRIPE_CHECKOUT_URL);
     await expect(page.getByRole("heading", { name: "Pay Tallyhawk" })).toBeVisible();
+  });
+
+  test("returning from Stripe confirms the checkout and unlocks Pro without signing out", async ({
+    page,
+    api,
+    signIn,
+  }) => {
+    await signIn();
+    const proToken = makeToken({ plan: "pro", role: "user" });
+    api.set({
+      ...accountRoutes(),
+      "POST /billing/confirm": {
+        json: { plan: "pro", status: "complete", access_token: proToken, token_type: "bearer", role: "user" },
+      },
+    });
+
+    await page.goto("/billing/success?session_id=cs_test_123");
+    await expect(page.getByRole("heading", { name: "Welcome to Pro!" })).toBeVisible();
+    expect(api.calls("POST /billing/confirm")[0].body).toEqual({ session_id: "cs_test_123" });
+    expect(await page.evaluate(() => localStorage.getItem("token"))).toBe(proToken);
+    await expect(page).toHaveURL(/\/billing\/success/);
   });
 
   test("signed-out visitors are asked to log in before upgrading", async ({ page }) => {

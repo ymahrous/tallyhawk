@@ -3,14 +3,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   uploadDocument, getDocuments, getExtraction, deleteDocument,
-  Document, Extraction, isTokenExpired, getQuickBooksStatus,
+  Document, Extraction, getQuickBooksStatus,
   getDashboardStats, DashboardStats
 } from "@/lib/api";
 import { useSettings } from "@/app/providers/SettingsContext";
 import { formatCurrency, CurrencyCode } from "@/lib/currency";
 import { PRODUCT_FACTS } from "@/lib/site";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 import UsageMeter from "@/components/ui/UsageMeter";
 import { useTheme } from "@/app/providers/ThemeContext";
 import UpgradePrompt from "@/components/ui/UpgradePrompt";
@@ -21,24 +21,16 @@ import { UploadError, DeleteError } from "@/components/dashboard/Alerts";
 const PAGE_SIZE = 10;
 
 export default function DashboardPage() {
-  const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const { baseCurrency } = useSettings();
   const [limitError, setLimitError] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
-  // ── Auth ──
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  // ── Auth (customers only; admins are sent to /admin) ──
+  const isAuthenticated = useAuthGuard("user");
+  const isLoading = !isAuthenticated;
   const [qbConnected, setQbConnected] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (isTokenExpired()) { router.push("/login"); return; }
-    setIsAuthenticated(true);
-    setIsLoading(false);
-  }, [router]);
 
   // ── Documents ──
   const [documents, setDocuments] = useState<Document[]>([]);

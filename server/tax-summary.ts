@@ -4,10 +4,20 @@ import { effectiveDate, parseAmountOr, reliableAmount } from "./amounts";
 import type { Db } from "./db";
 import { documents, extractions } from "./db/schema";
 
+/**
+ * Neutralises spreadsheet formulas. Vendor names come from AI extraction of uploaded documents, so a
+ * receipt printed with "=HYPERLINK(...)" must not become a live formula in the accountant's Excel.
+ * Plain numbers (including negative amounts) are left alone.
+ */
+export function escapeFormula(value: string): string {
+  if (!/^[=+\-@\t\r]/.test(value) || /^-?[\d,]+(\.\d+)?$/.test(value)) return value;
+  return `'${value}`;
+}
+
 /** Python's csv.writer: quote fields containing a delimiter, quote or newline; CRLF rows. */
 export function toCsv(rows: (string | number)[][]): string {
   const cell = (v: string | number) => {
-    const s = String(v);
+    const s = typeof v === "number" ? String(v) : escapeFormula(v);
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return rows.map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";

@@ -128,6 +128,28 @@ describe("PlanProvider", () => {
     expect(result.current).toMatchObject({ plan: "pro", limit: -1 });
   });
 
+  it("exposes the subscription's status, cancellation and portal access", async () => {
+    signIn({ plan: "pro" });
+    mockApi({
+      ...accountRoutes({ plan: "pro" }),
+      "GET /billing/subscription": {
+        json: { plan: "pro", status: "past_due", current_period_end: "2026-11-01T00:00:00Z", last_renewal_date: null, cancel_at_period_end: true, can_manage: true },
+      },
+    });
+    const { result } = renderHook(() => usePlan(), { wrapper });
+    await waitFor(() => expect(result.current.subscriptionStatus).toBe("past_due"));
+    expect(result.current).toMatchObject({ cancelAtPeriodEnd: true, canManageBilling: true });
+  });
+
+  it("has no plan for an admin session and never calls the billing API", async () => {
+    signIn({ role: "admin", plan: "pro" });
+    const server = mockApi();
+    const { result } = renderHook(() => usePlan(), { wrapper });
+    expect(result.current.plan).toBeNull();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(server.requests).toHaveLength(0);
+  });
+
   it("resets when the token is removed in the same tab", async () => {
     signIn({ plan: "free" });
     mockApi(accountRoutes({ used: 7 }));
@@ -190,6 +212,14 @@ describe("SettingsProvider", () => {
     });
     expect(result.current.baseCurrency).toBe("USD");
     expect(localStorage.getItem("tallyhawk_base_currency")).toBe("USD");
+  });
+
+  it("skips the customer settings request for an admin session", async () => {
+    signIn({ role: "admin" });
+    const server = mockApi();
+    const { result } = renderHook(() => useSettings(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(server.requests).toHaveLength(0);
   });
 
   it("clears the cached currency on logout", async () => {

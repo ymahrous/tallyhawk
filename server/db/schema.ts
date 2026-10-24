@@ -11,6 +11,7 @@ import {
   unique,
   varchar,
 } from "drizzle-orm/pg-core";
+import type { TriageStatus } from "@/lib/support";
 
 // These tables mirror, column for column, the ones the former FastAPI/SQLModel backend created
 // (SQLModel names tables after the lowercased class name, hence "usagerecord" etc.). Existing
@@ -19,6 +20,9 @@ import {
 //
 // Column defaults are applied in JS ($defaultFn) rather than as DB defaults because SQLModel
 // created most of these columns NOT NULL *without* a server default.
+
+export type AccountRole = "user" | "admin";
+export type AccountStatus = "active" | "suspended";
 
 const id = () =>
   varchar("id")
@@ -37,8 +41,15 @@ export const users = pgTable(
     plan: varchar("plan").notNull().default("free"),
     baseCurrency: varchar("base_currency", { length: 3 }).notNull().default("USD"),
     createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    // "user" (a customer) or "admin" (staff). The two never overlap: admins have no documents,
+    // billing or settings, and customer routes refuse admin sessions (server/http.ts).
+    role: varchar("role").$type<AccountRole>().notNull().default("user"),
+    status: varchar("status").$type<AccountStatus>().notNull().default("active"),
+    // Embedded in session tokens as `ver`; bumping it revokes every session of the account.
+    tokenVersion: integer("token_version").notNull().default(0),
+    lastLoginAt: timestamp("last_login_at", { mode: "date", withTimezone: true }),
   },
-  (t) => [unique("ix_user_username").on(t.username)]
+  (t) => [unique("ix_user_username").on(t.username), index("ix_user_role").on(t.role)]
 );
 
 export const documents = pgTable(
@@ -60,6 +71,8 @@ export const documents = pgTable(
       .notNull()
       .references(() => users.id),
     flags: varchar("flags"),
+    // Object key in storage: `<ownerId>/<uuid>.<ext>`. Null on legacy rows, whose key is `filename`.
+    storagePath: varchar("storage_path"),
   },
   (t) => [index("ix_document_owner_id").on(t.ownerId)]
 );
@@ -137,6 +150,8 @@ export const subscriptions = pgTable(
       .notNull()
       .$defaultFn(() => "inactive"),
     currentPeriodEnd: naiveTimestamp("current_period_end"),
+    currentPeriodStart: naiveTimestamp("current_period_start"),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
     createdAt: naiveTimestamp("created_at")
       .notNull()
       .$defaultFn(() => new Date()),
@@ -204,8 +219,69 @@ export const feedback = pgTable(
     createdAt: naiveTimestamp("created_at")
       .notNull()
       .$defaultFn(() => new Date()),
+    status: varchar("status").$type<TriageStatus>().notNull().default("new"),
+    adminNote: varchar("admin_note"),
+    /** App path the feedback was sent from, e.g. "/app". */
+    page: varchar("page"),
+    updatedAt: naiveTimestamp("updated_at"),
   },
   (t) => [index("ix_feedback_user_id").on(t.userId)]
+);
+
+export const contactMessages = pgTable(
+  "contactmessage",
+  {
+    id: id(),
+    userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+    name: varchar("name").notNull(),
+    email: varchar("email").notNull(),
+    subject: varchar("subject").notNull(),
+    message: varchar("message").notNull(),
+    status: varchar("status").$type<TriageStatus>().notNull().default("new"),
+    adminNote: varchar("admin_note"),
+    createdAt: naiveTimestamp("created_at")
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: naiveTimestamp("updated_at"),
+  },
+  (t) => [index("ix_contactmessage_status").on(t.status), index("ix_contactmessage_created_at").on(t.createdAt)]
+);
+
+export const auditLog = pgTable(
+  "auditlog",
+  {
+    id: id(),
+    actorId: varchar("actor_id"),
+    actorUsername: varchar("actor_username").notNull(),
+    action: varchar("action").notNull(),
+    targetType: varchar("target_type"),
+    targetId: varchar("target_id"),
+    targetLabel: varchar("target_label"),
+    details: json("details").$type<Record<string, unknown>>(),
+    ipHash: varchar("ip_hash"),
+    createdAt: naiveTimestamp("created_at")
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("ix_auditlog_created_at").on(t.createdAt), index("ix_auditlog_action").on(t.action)]
+);
+
+export const stripeEvents = pgTable("stripeevent", {
+  id: varchar("id").primaryKey(),
+  type: varchar("type").notNull(),
+  createdAt: naiveTimestamp("created_at")
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const rateLimits = pgTable(
+  "ratelimit",
+  {
+    key: varchar("key").primaryKey(),
+    count: integer("count").notNull(),
+    windowStart: timestamp("window_start", { mode: "date", withTimezone: true }).notNull(),
+  },
+  (t) => [index("ix_ratelimit_window_start").on(t.windowStart)]
 );
 
 export const passwordResetTokens = pgTable(
@@ -215,6 +291,7 @@ export const passwordResetTokens = pgTable(
     userId: varchar("user_id")
       .notNull()
       .references(() => users.id),
+    /** SHA-256 (hex) of the token in the emailed link; the token itself is never stored. */
     token: varchar("token").notNull(),
     expiresAt: naiveTimestamp("expires_at")
       .notNull()
@@ -231,3 +308,7 @@ export type User = typeof users.$inferSelect;
 export type DocumentRow = typeof documents.$inferSelect;
 export type ExtractionRow = typeof extractions.$inferSelect;
 export type VendorRow = typeof vendors.$inferSelect;
+export type SubscriptionRow = typeof subscriptions.$inferSelect;
+export type FeedbackRow = typeof feedback.$inferSelect;
+export type ContactMessageRow = typeof contactMessages.$inferSelect;
+export type AuditLogRow = typeof auditLog.$inferSelect;

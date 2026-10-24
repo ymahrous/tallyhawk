@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getSettings, updateSettings } from "@/lib/api";
+import { getRole, getSettings, updateSettings } from "@/lib/api";
 import { CurrencyCode } from "@/lib/currency";
 
 interface SettingsData {
@@ -38,6 +38,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshSettings = async () => {
+    // Base currency and plan are customer settings; admin accounts have neither.
+    if (getRole() === "admin") {
+      setIsLoading(false);
+      return;
+    }
     try {
       const data = await getSettings();
       setBaseCurrency(data.base_currency as CurrencyCode);

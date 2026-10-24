@@ -28,6 +28,23 @@ describe("login page", () => {
     expect(router.push).toHaveBeenCalledWith("/app");
   });
 
+  it("sends a signed-in admin to the admin dashboard, never the customer app", () => {
+    signIn({ role: "admin" });
+    const server = mockApi();
+    renderWithProviders(<LoginPage />);
+    expect(router.push).toHaveBeenCalledWith("/admin");
+    expect(router.push).not.toHaveBeenCalledWith("/app");
+    // Admin sessions skip the customer billing and settings requests.
+    expect(server.requests).toEqual([]);
+  });
+
+  it("sends a signed-in admin from signup to the admin dashboard too", () => {
+    signIn({ role: "admin" });
+    mockApi();
+    renderWithProviders(<SignupPage />);
+    expect(router.push).toHaveBeenCalledWith("/admin");
+  });
+
   it("signs in and stores the token", async () => {
     const token = makeToken();
     const server = mockApi({

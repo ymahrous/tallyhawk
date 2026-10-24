@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/app/providers/ThemeContext";
-import { isTokenExpired, uploadDocument } from "@/lib/api";
+import { uploadDocument } from "@/lib/api";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 import { validateUploadFile } from "@/lib/uploads";
 
 export default function CapturePage() {
@@ -17,9 +18,7 @@ export default function CapturePage() {
   const [success, setSuccess] = useState(false);
 
   // The installed PWA opens here directly, so it needs the same guard as the dashboard.
-  useEffect(() => {
-    if (isTokenExpired()) router.push("/login");
-  }, [router]);
+  useAuthGuard("user");
 
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -17,7 +17,7 @@ export default function TermsOfService() {
           Terms of Service
         </h1>
         <p className={`text-sm mb-12 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-          Last updated: July 2026
+          Last updated: October 2026
         </p>
 
         <div className="space-y-8">
@@ -96,7 +96,7 @@ export default function TermsOfService() {
             {
               id: "14",
               title: "14. Contact Information",
-              content: "For questions about these Terms, please send us a message through the chat widget.",
+              content: "For questions about these Terms, please send us a message through the Contact page (linked in the footer of every page).",
             },
             {
               id: "15",

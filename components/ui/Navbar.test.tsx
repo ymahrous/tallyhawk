@@ -115,3 +115,42 @@ describe("Navbar (signed in)", () => {
     expect(screen.queryByRole("link", { name: "Dashboard" })).toBeNull();
   });
 });
+
+describe("Navbar (admin)", () => {
+  it("shows the admin badge and admin sections instead of the customer app and marketing links", async () => {
+    signIn({ role: "admin" });
+    const server = mockApi();
+    renderWithProviders(<Navbar />);
+
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Tallyhawk admin dashboard" })).toHaveAttribute("href", "/admin");
+    expect(screen.getByRole("link", { name: "Admin dashboard" })).toHaveAttribute("href", "/admin");
+    expect(screen.queryByRole("link", { name: "Pricing" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Dashboard" })).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "User menu" }));
+    const items = within(screen.getByRole("menu")).getAllByRole("menuitem").map((i) => i.getAttribute("href"));
+    expect(items).toEqual(expect.arrayContaining(["/admin", "/admin/users", "/admin/admins", "/admin/contact", "/admin/feedback", "/admin/audit", null]));
+    expect(items).not.toContain("/app");
+    expect(items).not.toContain("/account");
+    expect(server.requests).toEqual([]);
+  });
+
+  it("uses admin sections in the mobile menu too", async () => {
+    signIn({ role: "admin" });
+    mockApi();
+    renderWithProviders(<Navbar />);
+    await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
+    const links = hrefs(document.getElementById("mobile-menu")!);
+    expect(links).toContain("/admin/users");
+    expect(links).not.toContain("/vendors");
+  });
+
+  it("hides the admin dashboard shortcut while on the overview", () => {
+    signIn({ role: "admin" });
+    mockApi();
+    setPathname("/admin");
+    renderWithProviders(<Navbar />);
+    expect(screen.queryByRole("link", { name: "Admin dashboard" })).toBeNull();
+  });
+});

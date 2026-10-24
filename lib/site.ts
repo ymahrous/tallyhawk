@@ -50,8 +50,9 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { path: "/pricing", lastModified: "2026-09-23", changeFrequency: "monthly", priority: 0.9 },
   { path: "/signup", lastModified: "2026-09-23", changeFrequency: "yearly", priority: 0.6 },
   { path: "/login", lastModified: "2026-09-23", changeFrequency: "yearly", priority: 0.4 },
-  { path: "/privacy", lastModified: "2026-07-01", changeFrequency: "yearly", priority: 0.3 },
-  { path: "/terms", lastModified: "2026-07-01", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/contact", lastModified: "2026-10-24", changeFrequency: "yearly", priority: 0.4 },
+  { path: "/privacy", lastModified: "2026-10-24", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/terms", lastModified: "2026-10-24", changeFrequency: "yearly", priority: 0.3 },
   { path: "/accessibility", lastModified: "2026-07-01", changeFrequency: "yearly", priority: 0.3 },
 ];
 
@@ -64,6 +65,7 @@ export const PRIVATE_ROUTE_PREFIXES = [
   "/capture",
   "/billing",
   "/reset-password",
+  "/admin",
 ] as const;
 
 export function absoluteUrl(path = "/"): string {

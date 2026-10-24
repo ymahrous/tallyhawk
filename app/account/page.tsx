@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { changePassword, deleteAccount, exportTaxSummary } from "@/lib/api";
+import { changePassword, deleteAccount, exportTaxSummary, logoutEverywhere, openBillingPortal } from "@/lib/api";
 import { usePlan } from "../providers/PlanContext";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { useSettings } from "@/app/providers/SettingsContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getQuickBooksConnectUrl, getQuickBooksStatus } from "@/lib/api";
-import { logout, decodeToken, isTokenExpired, disconnectQuickBooks } from "@/lib/api";
+import { logout, decodeToken, disconnectQuickBooks } from "@/lib/api";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 import { SUPPORTED_CURRENCIES, CurrencyCode } from "@/lib/currency";
 import { PRODUCT_FACTS } from "@/lib/site";
 import { validatePassword } from "@/lib/validation";
@@ -133,10 +134,10 @@ export default function AccountPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const searchParams = useSearchParams();
-  const { plan: currentPlan, lastRenewalDate } = usePlan();
+  const { plan: currentPlan, lastRenewalDate, currentPeriodEnd, subscriptionStatus, cancelAtPeriodEnd, canManageBilling } = usePlan();
 
-  // ── Auth guard ──
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // ── Auth guard (customers only; admins have their own account page) ──
+  const isAuthenticated = useAuthGuard("user");
   const [accountEmail, setAccountEmail] = useState("");
   const [sessionExpiry, setSessionExpiry] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -220,13 +221,12 @@ export default function AccountPage() {
     }
   };
 
-  // Auth guard, session details and QuickBooks status
+  // Session details and QuickBooks status, once the guard has let us in
   useEffect(() => {
-    if (isTokenExpired()) { router.push("/login"); return; }
+    if (!isAuthenticated) return;
     const payload = decodeToken();
-    if (!payload) { router.push("/login"); return; }
+    if (!payload) return;
 
-    setIsAuthenticated(true);
     setAccountEmail(payload.sub);
     setSessionExpiry(new Date(payload.exp * 1000).toLocaleString());
 
@@ -249,7 +249,35 @@ export default function AccountPage() {
       setQbStatusMessage("Failed to connect QuickBooks. Please try again.");
       router.replace("/account");
     }
-  }, [router, searchParams]);
+  }, [isAuthenticated, router, searchParams]);
+
+  // ── Billing (Stripe Customer Portal: card, invoices, cancellation) ──
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
+  const [billingError, setBillingError] = useState("");
+  const handleManageBilling = async () => {
+    setIsOpeningPortal(true);
+    setBillingError("");
+    try {
+      const { url } = await openBillingPortal();
+      window.location.href = url;
+    } catch (err: unknown) {
+      setBillingError(err instanceof Error ? err.message : "Couldn't open the billing portal.");
+      setIsOpeningPortal(false);
+    }
+  };
+
+  const [signOutAllError, setSignOutAllError] = useState("");
+  const handleSignOutEverywhere = async () => {
+    if (!confirm("Sign out of Tallyhawk on every device, including this one?")) return;
+    try {
+      await logoutEverywhere();
+      router.push("/login");
+    } catch (err: unknown) {
+      setSignOutAllError(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  };
+
+  const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
   const handleQuickBooksConnect = async () => {
     setIsConnectingQb(true);
@@ -373,8 +401,16 @@ export default function AccountPage() {
               >
                 Upgrade
               </button>
+            ) : subscriptionStatus === "past_due" ? (
+              <span className={`text-xs font-medium px-3 py-1 rounded-full border ${isDark ? "bg-amber-500/10 text-amber-300 border-amber-500/20" : "bg-amber-50 text-amber-800 border-amber-200"}`}>
+                Payment issue
+              </span>
+            ) : cancelAtPeriodEnd ? (
+              <span className={`text-xs font-medium px-3 py-1 rounded-full border ${isDark ? "bg-white/10 text-gray-300 border-white/10" : "bg-gray-100 text-gray-700 border-gray-200"}`}>
+                Cancels soon
+              </span>
             ) : (
-              <span className="text-xs font-medium px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className={`text-xs font-medium px-3 py-1 rounded-full border ${isDark ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
                 Active
               </span>
             )}
@@ -385,18 +421,41 @@ export default function AccountPage() {
             <div className={`mt-6 pt-6 border-t space-y-3 ${
               isDark ? "border-white/10" : "border-gray-200"
             }`}>
+              {subscriptionStatus === "past_due" && (
+                <p role="alert" className={`text-sm px-4 py-2 rounded-lg ${isDark ? "text-amber-300 bg-amber-500/10" : "text-amber-800 bg-amber-50"}`}>
+                  Your last payment didn't go through. Update your card in the billing portal to keep Pro.
+                </p>
+              )}
               <InputField
                 label="Last Renewal"
-                value={lastRenewalDate ? new Date(lastRenewalDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "N/A"}
+                value={lastRenewalDate ? formatDate(lastRenewalDate) : "N/A"}
                 disabled
                 isDark={isDark}
               />
-              {/* <InputField
-                label="Next Renewal"
-                value={currentPeriodEnd ? new Date(currentPeriodEnd).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "N/A"}
-                disabled
-                isDark={isDark}
-              /> */}
+              {currentPeriodEnd && (
+                <InputField
+                  label={cancelAtPeriodEnd ? "Pro Ends On" : "Next Renewal"}
+                  value={formatDate(currentPeriodEnd)}
+                  disabled
+                  isDark={isDark}
+                />
+              )}
+            </div>
+          )}
+
+          {canManageBilling && (
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                onClick={handleManageBilling}
+                disabled={isOpeningPortal}
+                className={`${primaryBtnClass} self-start text-xs font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50`}
+              >
+                {isOpeningPortal ? "Opening…" : "Manage billing"}
+              </button>
+              <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                Update your card, download invoices or cancel your subscription on Stripe.
+              </p>
+              {billingError && <p role="alert" className="text-sm text-red-500">{billingError}</p>}
             </div>
           )}
         </SectionCard>
@@ -552,16 +611,27 @@ export default function AccountPage() {
                 disabled
                 isDark={isDark}
             />
-            <button
-              onClick={() => { logout(); router.push("/login"); }}
-              className={`text-sm font-medium transition-colors ${
-                isDark
-                  ? "text-gray-400 hover:text-white"
-                  : "text-gray-500 hover:text-gray-900"
-              }`}
-            >
-              Sign out of this session →
-            </button>
+            <div className="flex flex-col items-start gap-3">
+              <button
+                onClick={() => { logout(); router.push("/login"); }}
+                className={`text-sm font-medium transition-colors ${
+                  isDark
+                    ? "text-gray-400 hover:text-white"
+                    : "text-gray-500 hover:text-gray-900"
+                }`}
+              >
+                Sign out of this session →
+              </button>
+              <button
+                onClick={handleSignOutEverywhere}
+                className={`text-sm font-medium transition-colors ${
+                  isDark ? "text-red-400 hover:text-red-300" : "text-red-600 hover:text-red-700"
+                }`}
+              >
+                Sign out of all devices →
+              </button>
+              {signOutAllError && <p role="alert" className="text-sm text-red-500">{signOutAllError}</p>}
+            </div>
           </div>
         </SectionCard>
 

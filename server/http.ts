@@ -11,7 +11,8 @@ import { users, type User } from "./db/schema";
 export class ApiError extends Error {
   constructor(
     readonly status: number,
-    readonly detail: unknown
+    readonly detail: unknown,
+    readonly headers?: Record<string, string>
   ) {
     super(typeof detail === "string" ? detail : JSON.stringify(detail));
   }
@@ -38,7 +39,7 @@ export function route<C = unknown>(handler: Handler<C>): Handler<C> {
     try {
       return await handler(request, context);
     } catch (error) {
-      if (error instanceof ApiError) return json({ detail: error.detail }, { status: error.status });
+      if (error instanceof ApiError) return json({ detail: error.detail }, { status: error.status, headers: error.headers });
       console.error(JSON.stringify({ level: "error", path: new URL(request.url).pathname, error: String(error) }));
       return json({ detail: "Internal Server Error" }, { status: 500 });
     }
@@ -52,12 +53,20 @@ function validationError(issues: z.core.$ZodIssue[]): ApiError {
   );
 }
 
+/** No JSON body this API accepts comes anywhere near this; larger ones are refused unread. */
+export const MAX_JSON_BYTES = 64 * 1024;
+
 /** Parses and validates a JSON body (FastAPI/Pydantic equivalent). */
 export async function parseJson<S extends z.ZodType>(request: Request, schema: S): Promise<z.infer<S>> {
+  const tooLarge = () => new ApiError(413, "Request body too large.");
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_JSON_BYTES) throw tooLarge();
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    const text = await request.text();
+    if (text.length > MAX_JSON_BYTES) throw tooLarge();
+    body = JSON.parse(text);
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
     throw new ApiError(422, [{ loc: ["body"], msg: "Invalid JSON body", type: "json_invalid" }]);
   }
   const result = schema.safeParse(body);
@@ -94,22 +103,58 @@ function bearerToken(request: Request): string {
   return token;
 }
 
-/** Resolves the signed-in user from the Bearer JWT, or throws 401. */
-export async function getCurrentUser(request: Request): Promise<User> {
+/**
+ * Resolves the account (customer or admin) behind the Bearer session token, or throws 401. Every
+ * check is made against the database, not just the token, so revoking sessions, suspending an
+ * account or changing its role takes effect on the very next request.
+ */
+export async function getCurrentAccount(request: Request): Promise<User> {
   const payload = await decodeAccessToken(bearerToken(request));
   if (!payload || payload.role === "qb_oauth") throw new ApiError(401, "Invalid token");
   if (!payload.sub) throw new ApiError(401, "Invalid token payload");
 
-  const [user] = await getDb().select().from(users).where(eq(users.username, payload.sub)).limit(1);
-  if (!user) throw new ApiError(401, "User not found");
-  return user;
+  const [account] = await getDb().select().from(users).where(eq(users.username, payload.sub)).limit(1);
+  if (!account) throw new ApiError(401, "User not found");
+  // Tokens issued before token versions existed (including the Python backend's) carry no `ver`,
+  // which matches an account whose sessions have never been revoked.
+  if ((payload.ver ?? 0) !== account.tokenVersion) throw new ApiError(401, "Session expired. Please log in again.");
+  if (account.status !== "active") throw new ApiError(401, "This account has been suspended.");
+  // A token is only good for the account type it was issued to.
+  if ((payload.role === "admin") !== (account.role === "admin")) throw new ApiError(401, "Invalid token");
+  return account;
 }
 
-/** Admin routes accept only tokens minted by POST /admin/login (role: "admin"). */
-export async function getCurrentAdmin(request: Request): Promise<string> {
-  const payload = await decodeAccessToken(bearerToken(request));
-  if (!payload || payload.role !== "admin") throw new ApiError(401, "Invalid or expired admin session");
-  return payload.sub ?? "admin";
+/** Customer routes: the signed-in customer, or 401. Admin sessions get 403; admins aren't customers. */
+export async function getCurrentUser(request: Request): Promise<User> {
+  const account = await getCurrentAccount(request);
+  if (account.role !== "user") throw new ApiError(403, "Admin accounts can't use customer features.");
+  return account;
+}
+
+/** Admin routes: the signed-in admin, or 401 without a valid session and 403 for a customer's. */
+export async function getCurrentAdmin(request: Request): Promise<User> {
+  const account = await getCurrentAccount(request);
+  if (account.role !== "admin") throw new ApiError(403, "Admin access required.");
+  return account;
+}
+
+/** The signed-in customer when a valid session accompanies the request, else null. Never throws. */
+export async function getOptionalUser(request: Request): Promise<User | null> {
+  if (!request.headers.get("authorization")) return null;
+  try {
+    return await getCurrentUser(request);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The client's IP address, for rate limiting and the audit log. On Vercel these headers are set by
+ * the platform and can't be spoofed; behind another proxy, make sure it overwrites them.
+ */
+export function clientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return request.headers.get("x-real-ip")?.trim() || forwarded || "unknown";
 }
 
 export function requirePro(user: User, message: string) {

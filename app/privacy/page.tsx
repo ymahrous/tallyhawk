@@ -17,7 +17,7 @@ export default function PrivacyPolicy() {
           Privacy Policy
         </h1>
         <p className={`text-sm mb-12 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-          Last updated: July 2026
+          Last updated: October 2026
         </p>
 
         <div className="space-y-8">
@@ -43,7 +43,8 @@ export default function PrivacyPolicy() {
               <p><strong className={isDark ? "text-white" : "text-gray-900"}>Billing Data:</strong> When you subscribe to our Pro plan, payment processing is handled entirely by Stripe. We store your subscription status and billing dates, but we never see or store your full credit card number. <strong className={isDark ? "text-white" : "text-gray-900"}>Please note: We currently only support transactions in USD.</strong></p>
               <p><strong className={isDark ? "text-white" : "text-gray-900"}>Document Data:</strong> Documents you upload are temporarily stored in our secure cloud storage for AI processing. We also store the extracted structured data (vendor, amount, category) to provide our service features.</p>
               <p><strong className={isDark ? "text-white" : "text-gray-900"}>Integration Data:</strong> If you connect QuickBooks, we store OAuth tokens securely to facilitate synchronization. We do not access or store your QuickBooks financial data beyond what is necessary to push expense records.</p>
-              <p><strong className={isDark ? "text-white" : "text-gray-900"}>System Logs:</strong> Our hosting providers may automatically collect standard server logs such as IP address and browser type to prevent spam and ensure security.</p>
+              <p><strong className={isDark ? "text-white" : "text-gray-900"}>Support Messages:</strong> If you use the contact form or the feedback button, we store what you send (for the contact form, your name, email address, subject and message; for feedback, the message and the page it was sent from) so our team can respond. If you're signed in, the message is linked to your account. Deleting your account deletes these messages.</p>
+              <p><strong className={isDark ? "text-white" : "text-gray-900"}>System Logs:</strong> Our hosting providers may automatically collect standard server logs such as IP address and browser type to prevent spam and ensure security. To limit abuse (for example, repeated sign-in attempts), we keep short-lived request counters keyed by a one-way, keyed hash of your IP address or the email address entered, never the address itself.</p>
             </div>
           </div>
 
@@ -133,7 +134,7 @@ export default function PrivacyPolicy() {
             {
               id: "11",
               title: "11. Contact",
-              content: "For privacy, data deletion, data portability requests, or DPA inquiries, please send us an issue through the chat widget.",
+              content: "For privacy, data deletion, data portability requests, or DPA inquiries, please use the Contact page (linked in the footer of every page) or the feedback button. We reply by email.",
             },
           ].map(({ id, title, content }) => (
             <div key={id} id={id} className={`rounded-2xl border p-6 ${

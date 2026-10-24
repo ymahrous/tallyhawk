@@ -5,6 +5,8 @@ import { logout } from "@/lib/api";
 import { Logo } from "@/components/brand/Logo";
 import { useEffect, useState, useRef } from "react";
 import { useIsLoggedIn } from "@/lib/useIsLoggedIn";
+import { useSessionRole } from "@/lib/useSessionRole";
+import { ADMIN_LINKS } from "@/components/admin/nav";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -29,6 +31,11 @@ export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
   const isLoggedIn = useIsLoggedIn();
+  // Admins and customers see different navigation: admins get the admin dashboard's sections and
+  // no customer app or marketing links.
+  const isAdmin = useSessionRole() === "admin";
+  const accountLinks = isAdmin ? ADMIN_LINKS : APP_LINKS;
+  const home = isAdmin ? "/admin" : "/app";
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -81,9 +88,16 @@ export default function Navbar() {
     <nav aria-label="Main" className={`fixed top-0 w-full z-50 border-b backdrop-blur-xl ${isDark ? "bg-black/80 border-white/10" : "bg-white/80 border-gray-200"}`}>
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
 
-        <Link href="/" aria-label="Tallyhawk home" className={isDark ? "text-white" : "text-gray-900"}>
-          <Logo />
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href={isAdmin ? "/admin" : "/"} aria-label={isAdmin ? "Tallyhawk admin dashboard" : "Tallyhawk home"} className={isDark ? "text-white" : "text-gray-900"}>
+            <Logo />
+          </Link>
+          {isAdmin && (
+            <span className={`text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${isDark ? "border-amber-400/40 text-amber-300 bg-amber-400/10" : "border-amber-300 text-amber-800 bg-amber-50"}`}>
+              Admin
+            </span>
+          )}
+        </div>
 
         {/* Desktop Right Side */}
         <div className="hidden md:flex items-center gap-6">
@@ -91,13 +105,17 @@ export default function Navbar() {
             <ThemeIcon isDark={isDark} />
           </button>
 
-          <Link href="/#features" className={navLinkClass("/#features")}>Features</Link>
-          <Link href="/pricing" className={navLinkClass("/pricing")} aria-current={current("/pricing")}>Pricing</Link>
+          {!isAdmin && (
+            <>
+              <Link href="/#features" className={navLinkClass("/#features")}>Features</Link>
+              <Link href="/pricing" className={navLinkClass("/pricing")} aria-current={current("/pricing")}>Pricing</Link>
+            </>
+          )}
 
           {isLoggedIn ? (
             <div className="flex items-center gap-4">
-              {pathname !== "/app" && (
-                <Link href="/app" className={primaryBtnClass}>Dashboard</Link>
+              {pathname !== home && (
+                <Link href={home} className={primaryBtnClass}>{isAdmin ? "Admin dashboard" : "Dashboard"}</Link>
               )}
 
               <div className="relative" ref={dropdownRef}>
@@ -112,8 +130,8 @@ export default function Navbar() {
                 </button>
 
                 {dropdownOpen && (
-                  <div role="menu" className={`absolute right-0 mt-2 w-48 rounded-xl shadow-lg border backdrop-blur-xl py-2 z-50 ${isDark ? "bg-black border-white/10" : "bg-white border-gray-200"}`}>
-                    {APP_LINKS.map(({ href, label }) => (
+                  <div role="menu" className={`absolute right-0 mt-2 w-52 rounded-xl shadow-lg border backdrop-blur-xl py-2 z-50 ${isDark ? "bg-black border-white/10" : "bg-white border-gray-200"}`}>
+                    {accountLinks.map(({ href, label }) => (
                       <Link key={href} href={href} role="menuitem" className={dropdownLinkClass(href)} aria-current={current(href)}>
                         {label}
                       </Link>
@@ -154,11 +172,15 @@ export default function Navbar() {
       {/* Mobile Menu */}
       {menuOpen && (
         <div id="mobile-menu" className={`md:hidden border-t px-6 py-4 flex flex-col gap-4 ${isDark ? "bg-black/90 border-white/10" : "bg-white/90 border-gray-200"}`}>
-          <Link href="/#features" className={navLinkClass("/#features")}>Features</Link>
-          <Link href="/pricing" className={navLinkClass("/pricing")} aria-current={current("/pricing")}>Pricing</Link>
+          {!isAdmin && (
+            <>
+              <Link href="/#features" className={navLinkClass("/#features")}>Features</Link>
+              <Link href="/pricing" className={navLinkClass("/pricing")} aria-current={current("/pricing")}>Pricing</Link>
+            </>
+          )}
           {isLoggedIn ? (
             <>
-              {APP_LINKS.map(({ href, label }) => (
+              {accountLinks.map(({ href, label }) => (
                 <Link key={href} href={href} className={navLinkClass(href)} aria-current={current(href)}>{label}</Link>
               ))}
               <button onClick={handleLogout} className="text-left text-sm font-medium text-red-500 transition-colors">Log out</button>

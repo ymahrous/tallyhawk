@@ -37,15 +37,35 @@ This repository is the whole product: the Next.js UI **and** its API. The REST A
 - **Multi-Currency Support** — invoices are extracted in their original currency and shown converted into the user's chosen base currency, with the original amount always visible alongside it
 
 ### Account & Billing
-- **Stripe Subscriptions** — free tier (10 docs/month) and a monthly Pro tier via Stripe Checkout; subscription changes and cancellations arrive by webhook
-- **Email/password authentication** with JWT bearer tokens, a password policy enforced by both the forms and the API, a strength meter, a client-side cool-down after repeated failed sign-ins, and a confirm-password flow
-- **Forgot/Reset Password** — secure, expiring token flow with HTML emails via Resend
-- **Account page** for viewing session info, changing password, setting a base currency, managing QuickBooks connection, and exporting tax summaries
+- **Stripe Subscriptions** — free tier (10 docs/month) and a monthly Pro tier via Stripe Checkout. Pro switches on as soon as you return from checkout (the session is confirmed with Stripe directly, no sign-out needed); the Stripe Customer Portal handles card changes, invoices and cancellation; webhooks are idempotent and always apply the subscription's latest state
+- **Email/password authentication** with JWT bearer tokens, a password policy enforced by both the forms and the API, a strength meter, server-side rate limiting of sign-in attempts, and a confirm-password flow
+- **Session control** — changing or resetting a password signs out every other session; "sign out of all devices" and admin suspension revoke sessions immediately
+- **Forgot/Reset Password** — secure, expiring, single-use token flow (only token hashes are stored) with HTML emails via Resend
+- **Account page** for viewing session info, changing password, setting a base currency, managing billing and the QuickBooks connection, and exporting tax summaries
+
+### Admin dashboard
+- **Separate account type** — admins are their own accounts (`role = 'admin'`), never customers: they sign in on the same page but land on `/admin`, see admin-only navigation, and are refused by every customer endpoint (and customers by every admin endpoint)
+- **Analytics** — customers, Pro, estimated MRR, past-due and canceling subscriptions, documents and failure rate, AI confidence, daily signups/uploads/support volume, category, currency and plan breakdowns, top uploaders
+- **Customers** — search, filter and sort; per-customer usage, documents and Stripe subscription; grant or revoke Pro, suspend/reactivate, sign out everywhere, email a reset link, delete (cancelling Stripe billing first)
+- **Admins** — add admin accounts, suspend/reactivate or delete other admins (never yourself)
+- **Support inboxes** — contact-form messages and feedback/bug reports with triage states, private notes and deletion
+- **Documents** — every upload across customers (metadata only), with reprocessing of failed or stuck documents
+- **Audit log** — every admin change, with who, what and when
+
+### Security
+- Role-separated authorization checked against the database on every request; sessions carry a token version so revocation is instant
+- Postgres-backed rate limiting (works across serverless instances) on sign-in, signup, password reset, contact, feedback, upload and checkout; sign-in limits are per IP and per attempted email (existing or not), so lockouts can't reveal which emails are registered
+- Strict security headers (CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`, Referrer-Policy, Permissions-Policy) and `no-store` on API responses
+- Uploads are checked by content (magic bytes), not just name, and stored under per-user unguessable paths
+- Request body size limits, bounded inputs, CSV formula-injection escaping in tax exports, sign-in timing that doesn't reveal whether an email is registered, and a honeypot on the contact form
+
+### UX & Design
 
 ### UX & Design
 - **Dark/light theme** with system preference detection, cross-tab sync, and no flash on load
 - **Responsive navigation** with a mobile menu, user avatar dropdown, and active-route highlighting
-- **Global Feedback Widget** — expanding chat-bubble UI for suggestions, bug reports, or general feedback
+- **Global Feedback Widget** — expanding chat-bubble UI for suggestions, bug reports, or general feedback (linked to the customer's account when signed in)
+- **Contact page** — a public form whose messages land in the admin inbox
 - **Legal pages** (Terms of Service, Privacy Policy) written for the actual infrastructure this app runs on
 - **Brand system** — a geometric hawk mark defined once in `lib/brand.ts`; favicons, app/PWA icons and the logo files are generated from it (`npm run brand:assets`)
 
@@ -127,10 +147,11 @@ tallyhawk/
 │   ├── pricing/page.tsx         # Plans, comparison table, billing FAQ (Server Component)
 │   ├── api/v1/                  # REST API (Route Handlers): auth, upload/documents, extraction, billing,
 │   │                            #   quickbooks, vendors, stats, analytics, reports, feedback, admin
-│   ├── app/                     # Authenticated dashboard (+ loading/error states)
+│   ├── app/                     # Customer dashboard (+ loading/error states)
 │   ├── analytics/  vendors/  account/  capture/  billing/
+│   ├── admin/                   # Admin dashboard: overview, users, admins, contact, feedback, documents, audit
 │   ├── login/  signup/  forgot-password/  reset-password/
-│   ├── privacy/  terms/  accessibility/
+│   ├── contact/  privacy/  terms/  accessibility/
 │   └── providers/               # Theme, Plan, Settings and CookieConsent contexts
 ├── components/
 │   ├── brand/Logo.tsx           # Inline logo mark + wordmark
@@ -138,20 +159,26 @@ tallyhawk/
 │   ├── pricing/PricingPlans.tsx # Plan cards + Stripe checkout (client island)
 │   ├── seo/JsonLd.tsx           # Escaped JSON-LD <script>
 │   ├── dashboard/               # DocumentCard, UploadZone, Alerts
+│   ├── admin/                   # AdminShell (guard + nav), charts, inbox triage, shared admin UI
+│   ├── contact/ContactForm.tsx  # Contact form (client island)
 │   └── ui/                      # Navbar, Footer, SyncButton, UsageMeter, … + shadcn primitives
 ├── lib/
-│   ├── api.ts                   # API client (same-origin /api/v1)
+│   ├── api.ts  admin-api.ts     # API clients (same-origin /api/v1; admin endpoints)
+│   ├── useAuthGuard.ts  useSessionRole.ts                     # Per-account-type page guard, role hook
+│   ├── support.ts               # Feedback/contact rules shared by forms and API
 │   ├── site.ts  seo.ts  structured-data.ts  llms.ts  og.tsx   # SEO/AEO/GEO building blocks
 │   ├── brand.ts  pricing.ts  marketing.ts                     # Brand, plans and marketing copy
 │   ├── currency.ts  uploads.ts  validation.ts  useIsLoggedIn.ts  utils.ts
 ├── server/                      # Server-only code behind the API
 │   ├── db/                      # Drizzle schema + idempotent SQL migrations
 │   ├── pipeline.ts              # Upload → Gemini → currency → vendor → duplicate/anomaly flags
-│   ├── http.ts  auth.ts         # Route wrapper, errors, JWT/bcrypt, current user/admin
+│   ├── http.ts  auth.ts         # Route wrapper, errors, JWT/bcrypt, current account/customer/admin
+│   ├── accounts.ts  billing.ts  # Sign-in, sessions, deletion; Stripe → subscription sync
+│   ├── rate-limit.ts  audit.ts  admin.ts                      # Rate limits, admin audit log, admin helpers
 │   └── …                        # currency, vendors (difflib port), detection, quickbooks, storage, ai, …
 ├── e2e/                         # Playwright specs (+ support/ fixtures with a mocked backend)
 ├── test/                        # Vitest helpers: fetch-level API mock, JWTs, router, providers
-├── scripts/generate-brand-assets.mjs  db-migrate.mjs
+├── scripts/generate-brand-assets.mjs  db-migrate.mjs  create-admin.mjs
 ├── assets/fonts/                # Inter TTFs used to render OG images
 ├── playwright.config.ts
 ├── vitest.config.mts / vitest.setup.ts
@@ -180,8 +207,11 @@ Fill in `.env.local` (at minimum `DATABASE_URL`, `SECRET_KEY`, the Supabase valu
 
 ```bash
 npm run db:migrate   # idempotent; safe against the database the old FastAPI backend used
+npm run admin:create -- you@example.com   # first admin account (prompts for a password)
 npm run dev
 ```
+
+Sign in at `/login` with the admin account to reach `/admin`; add further admins from the dashboard.
 
 Open [http://localhost:3000](http://localhost:3000).
 
@@ -194,6 +224,7 @@ npm run dev            # Start the dev server
 npm run build          # Production build
 npm run start          # Start the production server
 npm run db:migrate     # Create any missing tables/indexes (idempotent)
+npm run admin:create -- <email>   # Create an admin account, or reset an admin's password
 npm run lint           # Run ESLint
 npm run typecheck      # tsc --noEmit
 npm test               # Unit, component and integration tests (Vitest)
@@ -207,8 +238,8 @@ npm run brand:assets   # Regenerate favicons, app icons and logo files from lib/
 ### Testing
 
 - **Unit and integration (Vitest + RTL, jsdom)** — colocated `*.test.ts(x)` files. Page tests render real pages inside the real providers and fake the API at the `fetch` level (`test/api-mock.ts`), so `lib/api.ts` runs for real.
-- **API (Vitest, node)** — `app/api/v1/**/*.test.ts` and `server/*.test.ts` call the route handlers directly against PGlite (Postgres compiled to WASM, in-process) with the real migration applied. Gemini, Stripe, Supabase, Resend and outbound HTTP are mocked. See `test/server.ts`.
-- **End to end (Playwright)** — `e2e/*.spec.ts` against a production build. The build points `NEXT_PUBLIC_API_URL` at an unresolvable `.test` origin and every spec intercepts it, so the API is never hit. Covers SEO/crawler output, marketing journeys, auth, the dashboard, billing, analytics and axe-core WCAG 2.1 AA checks in light and dark themes, on desktop and mobile viewports.
+- **API (Vitest, node)** — `app/api/v1/**/*.test.ts` and `server/*.test.ts` call the route handlers directly against PGlite (Postgres compiled to WASM, in-process) with every real migration applied. Gemini, Stripe, Supabase, Resend and outbound HTTP are mocked. See `test/server.ts`.
+- **End to end (Playwright)** — `e2e/*.spec.ts` against a production build. The build points `NEXT_PUBLIC_API_URL` at an unresolvable `.test` origin and every spec intercepts it, so the API is never hit. Covers SEO/crawler output and security headers, marketing journeys, auth, the dashboard, billing, analytics, the admin/customer split and axe-core WCAG 2.1 AA checks in light and dark themes, on desktop and mobile viewports.
 - First-time e2e setup: `npx playwright install chromium`.
 
 ---
@@ -241,7 +272,9 @@ Deployed to [Vercel](https://vercel.com) as a single project — pages and API t
 
 After moving from the separate backend, also update these external settings to the new origin:
 
-- **Stripe** webhook endpoint → `https://<your-domain>/api/v1/billing/webhook`
+- **Stripe** webhook endpoint → `https://<your-domain>/api/v1/billing/webhook`, sending `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `customer.subscription.created/updated/deleted/paused/resumed`, `invoice.paid` and `invoice.payment_failed`
+- **Stripe Customer Portal** → enable it in the Stripe dashboard (Settings → Billing → Customer portal), with cancellation "at the end of the billing period" so it matches the pricing FAQ
+- **Admins** → run `npm run db:migrate` (it promotes an existing `ADMIN_USERNAME` account to an admin account) or `npm run admin:create -- <email>`
 - **Intuit** redirect URI and `QB_REDIRECT_URI` → `https://<your-domain>/api/v1/quickbooks/callback`
 - Reuse the old backend's **`SECRET_KEY`** so existing sessions keep working (password hashes are compatible either way).
 
@@ -257,7 +290,8 @@ Uploads are processed after the response with `after()`; the upload route sets `
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_PRO_MONTHLY` | — | Billing |
 | `QB_CLIENT_ID`, `QB_CLIENT_SECRET`, `QB_REDIRECT_URI`, `QB_ENVIRONMENT` | — | QuickBooks sync |
 | `RESEND_API_KEY`, `MAIL_FROM` | — | Password-reset email |
-| `ADMIN_USERNAME`, `PRO_MONTHLY_PRICE_USD` | — | Admin API (the price defaults to the advertised Pro price) |
+| `PRO_MONTHLY_PRICE_USD` | — | Price used for the admin dashboard's MRR estimate (defaults to the advertised Pro price) |
+| `ADMIN_USERNAME` | — | Upgrade path only: `npm run db:migrate` turns this existing account into an admin account |
 | `APP_URL` | — | Public origin for emails/redirects (defaults to the request origin) |
 | `NEXT_PUBLIC_S3_BUCKET_URL` | ✅ | Hostname allowed for document image previews (`next/image`); the build doesn't need it, but previews won't load without it |
 | `NEXT_PUBLIC_SITE_URL` | — | Canonical origin for metadata, sitemap and structured data (defaults to `https://tallyhawk.vercel.app`) |
@@ -270,7 +304,7 @@ Uploads are processed after the response with `after()`; the upload route sets `
 
 **Theming** — An inline script in `app/layout.tsx` runs before React hydrates, reading `localStorage` and `prefers-color-scheme` to set the theme class on `<html>` immediately. This avoids a flash of the wrong theme on load. Theme changes are synced across browser tabs using the native `storage` event.
 
-**Auth state** — JWT is stored in `localStorage`. Components that need to react to login/logout state (Navbar, landing page CTA) listen for `storage` events, which `logout()` dispatches manually to support same-tab updates.
+**Auth state** — JWT is stored in `localStorage`. Components that need to react to login/logout state (Navbar, landing page CTA) listen for `storage` events, which `logout()` dispatches manually to support same-tab updates. The token's `role` claim decides which app the UI shows (customer or admin); the API re-checks role, status and token version against the database on every request, so the claim is never trusted on its own.
 
 **Vendor Normalization** — Each extraction links to a vendor via `vendor_id`, and the UI and analytics prefer the normalized `vendor.canonical_name`. Renaming or merging a vendor updates that record, rewrites `extracted_data.vendor` on its linked extractions to the new name (so duplicate detection and exports agree), and keeps the old names as aliases so future uploads still match.
 

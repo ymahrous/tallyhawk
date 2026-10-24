@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Check, X } from "lucide-react";
 import { useIsLoggedIn } from "@/lib/useIsLoggedIn";
+import { useSessionRole } from "@/lib/useSessionRole";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { PRICING_PLANS, formatPlanPrice, type PricingPlan } from "@/lib/pricing";
 import { createCheckoutSession, decodeToken, getUsage } from "@/lib/api";
@@ -12,12 +13,14 @@ export default function PricingPlans() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const isLoggedIn = useIsLoggedIn();
+  const isAdmin = useSessionRole() === "admin";
   const [isLoading, setIsLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    // Admin accounts have no plan (and the billing API refuses them).
+    if (!isLoggedIn || isAdmin) {
       setCurrentPlan(null);
       return;
     }
@@ -32,7 +35,7 @@ export default function PricingPlans() {
       }
     };
     fetchPlan();
-  }, [isLoggedIn]);
+  }, [isLoggedIn, isAdmin]);
 
   const handleUpgrade = async () => {
     setIsLoading(true);
@@ -40,9 +43,12 @@ export default function PricingPlans() {
     try {
       const { url } = await createCheckoutSession();
       window.location.href = url; // Redirect to Stripe Checkout
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
       setCheckoutError(
-        "We couldn't start checkout. Please try again, or log in again if your session expired."
+        message === "Session expired"
+          ? "Your session expired. Please log in again to upgrade."
+          : message || "We couldn't start checkout. Please try again."
       );
       setIsLoading(false);
     }
@@ -64,6 +70,13 @@ export default function PricingPlans() {
     }`;
 
   const renderCta = (plan: PricingPlan) => {
+    if (isAdmin) {
+      return (
+        <button disabled className={buttonClass(plan, true)}>
+          Admin account
+        </button>
+      );
+    }
     const isCurrentPlan = currentPlan === plan.id;
     const isIncludedInPro = plan.id === "free" && currentPlan === "pro";
 

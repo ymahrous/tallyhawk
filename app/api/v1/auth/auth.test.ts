@@ -1,14 +1,16 @@
 // @vitest-environment node
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createAccessToken, decodeAccessToken, verifyPassword } from "@/server/auth";
+import { createAccessToken, decodeAccessToken, hashResetToken, verifyPassword } from "@/server/auth";
 import type { Db } from "@/server/db";
 import { documents, extractions, passwordResetTokens, quickbooksConnections, users, vendors } from "@/server/db/schema";
-import { call, createDocument, createTestDb, createUser, flushBackground, resetTestDb, stubFetch } from "@/test/server";
+import { call, createAdmin, createDocument, createTestDb, createUser, flushBackground, resetTestDb, stubFetch } from "@/test/server";
 import { POST as changePassword } from "./change-password/route";
 import { DELETE as deleteAccount } from "./delete/route";
 import { POST as forgotPassword } from "./forgot-password/route";
 import { POST as login } from "./login/route";
+import { POST as logoutAll } from "./logout-all/route";
+import { POST as refresh } from "./refresh/route";
 import { POST as resetPassword } from "./reset-password/route";
 import { GET as getSettings, PATCH as patchSettings } from "./settings/route";
 import { POST as signup } from "./signup/route";
@@ -72,9 +74,66 @@ describe("signup and login", () => {
     await createUser(db, { username: "login@test.com", password: "password123", plan: "pro" });
     const res = await call(login, "POST", "/auth/login", { body: { username: "login@test.com", password: "password123" } });
     expect(res.status).toBe(200);
+    expect(res.json.role).toBe("user");
     const claims = await decodeAccessToken(res.json.access_token);
-    expect(claims).toMatchObject({ sub: "login@test.com", plan: "pro" });
+    expect(claims).toMatchObject({ sub: "login@test.com", plan: "pro", role: "user", ver: 0 });
     expect(claims!.exp! - Date.now() / 1000).toBeGreaterThan(23 * 3600);
+    const [row] = await db.select().from(users).where(eq(users.username, "login@test.com"));
+    expect(row.lastLoginAt).toBeInstanceOf(Date);
+  });
+
+  it("matches emails case-insensitively and stores new ones lowercase", async () => {
+    const res = await call(signup, "POST", "/auth/signup", { body: { username: "Mixed@Case.com", password: "Password123" } });
+    expect(await decodeAccessToken(res.json.access_token)).toMatchObject({ sub: "mixed@case.com", role: "user" });
+    expect((await call(signup, "POST", "/auth/signup", { body: { username: "MIXED@case.com", password: "Password123" } })).status).toBe(400);
+    expect((await call(login, "POST", "/auth/login", { body: { username: "MIXED@CASE.COM", password: "Password123" } })).status).toBe(200);
+  });
+
+  it("signs admins in with a shorter admin session and no plan", async () => {
+    await createAdmin(db, { username: "boss@tallyhawk.test", password: "Admin-pass1" });
+    const res = await call(login, "POST", "/auth/login", { body: { username: "boss@tallyhawk.test", password: "Admin-pass1" } });
+    expect(res.json.role).toBe("admin");
+    const claims = await decodeAccessToken(res.json.access_token);
+    expect(claims).toMatchObject({ sub: "boss@tallyhawk.test", role: "admin" });
+    expect(claims!.plan).toBeUndefined();
+    expect(claims!.exp! - Date.now() / 1000).toBeLessThanOrEqual(12 * 3600);
+  });
+
+  it("only tells a suspended account apart from a wrong password when the password is right", async () => {
+    await createUser(db, { username: "gone@test.com", password: "password123", status: "suspended" });
+    expect((await call(login, "POST", "/auth/login", { body: { username: "gone@test.com", password: "wrong" } })).status).toBe(401);
+    const right = await call(login, "POST", "/auth/login", { body: { username: "gone@test.com", password: "password123" } });
+    expect(right).toMatchObject({ status: 403, json: { detail: expect.stringContaining("suspended") } });
+  });
+
+  it("rate-limits guessing per account, whether or not it exists (no enumeration)", async () => {
+    await createUser(db, { username: "real@test.com", password: "password123" });
+    for (const username of ["real@test.com", "ghost@test.com"]) {
+      for (let i = 0; i < 10; i++) {
+        expect((await call(login, "POST", "/auth/login", { body: { username, password: "wrong" } })).status).toBe(401);
+      }
+      const blocked = await call(login, "POST", "/auth/login", { body: { username, password: "wrong" } });
+      expect(blocked.status).toBe(429);
+      expect(Number(blocked.headers.get("retry-after"))).toBeGreaterThan(0);
+    }
+    // Even the right password waits out the window.
+    expect((await call(login, "POST", "/auth/login", { body: { username: "real@test.com", password: "password123" } })).status).toBe(429);
+  });
+
+  it("rate-limits by client IP across accounts", async () => {
+    const headers = { "x-forwarded-for": "203.0.113.7, 10.0.0.1" };
+    for (let i = 0; i < 30; i++) {
+      await call(login, "POST", "/auth/login", { body: { username: `u${i}@test.com`, password: "x" }, headers });
+    }
+    expect((await call(login, "POST", "/auth/login", { body: { username: "new@test.com", password: "x" }, headers })).status).toBe(429);
+    // A different client is unaffected.
+    expect((await call(login, "POST", "/auth/login", { body: { username: "new@test.com", password: "x" }, headers: { "x-forwarded-for": "198.51.100.1" } })).status).toBe(401);
+  });
+
+  it("refuses oversized request bodies before parsing them", async () => {
+    const huge = JSON.stringify({ username: "a@b.co", password: "x".repeat(70 * 1024) });
+    expect((await call(login, "POST", "/auth/login", { body: huge, headers: { "content-type": "application/json" } })).status).toBe(413);
+    expect((await call(login, "POST", "/auth/login", { body: { username: "a@b.co", password: "x".repeat(2000) } })).status).toBe(422);
   });
 
   it("rejects bad credentials with 401", async () => {
@@ -114,6 +173,44 @@ describe("authentication guard", () => {
     const state = await createAccessToken({ sub: user.username, role: "qb_oauth" });
     expect((await call(listDocuments, "GET", "/documents", { token: state })).status).toBe(401);
   });
+
+  it("keeps admins out of customer features", async () => {
+    const { token } = await createAdmin(db);
+    const res = await call(listDocuments, "GET", "/documents", { token });
+    expect(res).toMatchObject({ status: 403, json: { detail: "Admin accounts can't use customer features." } });
+  });
+
+  it("voids a token whose role doesn't match the account (e.g. an admin token for a customer)", async () => {
+    const { user } = await createUser(db);
+    const forgedAdmin = await createAccessToken({ sub: user.username, role: "admin" });
+    expect((await call(listDocuments, "GET", "/documents", { token: forgedAdmin })).status).toBe(401);
+    const admin = await createAdmin(db);
+    const customerToken = await createAccessToken({ sub: admin.user.username, plan: "pro" });
+    expect((await call(listDocuments, "GET", "/documents", { token: customerToken })).status).toBe(401);
+  });
+
+  it("signs out suspended accounts on their next request", async () => {
+    const { user, token } = await createUser(db);
+    await db.update(users).set({ status: "suspended" }).where(eq(users.id, user.id));
+    expect((await call(listDocuments, "GET", "/documents", { token })).json.detail).toBe("This account has been suspended.");
+  });
+});
+
+describe("sessions", () => {
+  it("signs out everywhere, including the session that asked", async () => {
+    const { token } = await createUser(db);
+    expect((await call(logoutAll, "POST", "/auth/logout-all", { token })).status).toBe(204);
+    const after = await call(listDocuments, "GET", "/documents", { token });
+    expect(after).toMatchObject({ status: 401, json: { detail: "Session expired. Please log in again." } });
+  });
+
+  it("refreshes a session with the account's current claims", async () => {
+    const { user, token } = await createUser(db);
+    await db.update(users).set({ plan: "pro" }).where(eq(users.id, user.id));
+    const res = await call(refresh, "POST", "/auth/refresh", { token });
+    expect(await decodeAccessToken(res.json.access_token)).toMatchObject({ plan: "pro", role: "user" });
+    expect((await call(refresh, "POST", "/auth/refresh")).status).toBe(401);
+  });
 });
 
 describe("change password", () => {
@@ -125,6 +222,16 @@ describe("change password", () => {
     const ok = await call(changePassword, "POST", "/auth/change-password", { token, body: { current_password: "old-pass", new_password: "New-pass1" } });
     expect(ok.status).toBe(200);
     expect((await call(login, "POST", "/auth/login", { body: { username: "ada@example.com", password: "New-pass1" } })).status).toBe(200);
+
+    // Every other session is signed out; this one continues with the token in the response.
+    expect((await call(listDocuments, "GET", "/documents", { token })).status).toBe(401);
+    expect((await call(listDocuments, "GET", "/documents", { token: ok.json.access_token })).status).toBe(200);
+  });
+
+  it("lets admins change their own password too", async () => {
+    const { token } = await createAdmin(db, { password: "Admin-pass1" });
+    const ok = await call(changePassword, "POST", "/auth/change-password", { token, body: { current_password: "Admin-pass1", new_password: "Admin-pass2" } });
+    expect(ok.json.role).toBe("admin");
   });
 
   it("applies the password policy to the new password", async () => {
@@ -143,7 +250,7 @@ describe("delete account", () => {
     await createDocument(db, { ownerId: other.user.id });
     await db.insert(vendors).values({ userId: user.id, canonicalName: "Acme" });
     await db.insert(quickbooksConnections).values({ userId: user.id, realmId: "r1" });
-    await db.insert(passwordResetTokens).values({ userId: user.id, token: "t" });
+    await db.insert(passwordResetTokens).values({ userId: user.id, token: hashResetToken("t") });
 
     const res = await call(deleteAccount, "DELETE", "/auth/delete", { token });
     expect(res.status).toBe(204);
@@ -181,7 +288,11 @@ describe("password reset", () => {
     const [to, link] = email.sendPasswordResetEmail.mock.calls[0] as unknown as [string, string];
     expect(to).toBe("ada@example.com");
     expect(link).toMatch(/^http:\/\/localhost:3000\/reset-password\?token=[\w-]{43}$/);
-    const token = new URL(link).searchParams.get("token");
+    const token = new URL(link).searchParams.get("token")!;
+    // Only the hash is stored: a database leak doesn't hand out working links.
+    const [stored] = await db.select().from(passwordResetTokens);
+    expect(stored.token).toBe(hashResetToken(token));
+    expect(stored.token).not.toContain(token);
 
     const weak = await call(resetPassword, "POST", "/auth/reset-password", { body: { token, new_password: "brand-new" } });
     expect(weak.status).toBe(422); // the reset form's policy is enforced here too, and the token stays usable
@@ -194,6 +305,28 @@ describe("password reset", () => {
     expect(reused.json.detail).toBe("Token has already been used.");
   });
 
+  it("signs out existing sessions and voids older links", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const { token: session } = await createUser(db);
+    await call(forgotPassword, "POST", "/auth/forgot-password", { body: { email: "ada@example.com" } });
+    await call(forgotPassword, "POST", "/auth/forgot-password", { body: { email: "ADA@example.com" } });
+    const links = email.sendPasswordResetEmail.mock.calls.map((c) => new URL((c as unknown as [string, string])[1]).searchParams.get("token"));
+    expect(links).toHaveLength(2);
+
+    const old = await call(resetPassword, "POST", "/auth/reset-password", { body: { token: links[0], new_password: "Brand-new1" } });
+    expect(old.json.detail).toBe("Invalid or expired token.");
+    expect((await call(resetPassword, "POST", "/auth/reset-password", { body: { token: links[1], new_password: "Brand-new1" } })).status).toBe(200);
+    expect((await call(listDocuments, "GET", "/documents", { token: session })).status).toBe(401);
+  });
+
+  it("limits reset emails per address", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    await createUser(db);
+    for (let i = 0; i < 3; i++) await call(forgotPassword, "POST", "/auth/forgot-password", { body: { email: "ada@example.com" } });
+    expect((await call(forgotPassword, "POST", "/auth/forgot-password", { body: { email: "ada@example.com" } })).status).toBe(429);
+    expect(email.sendPasswordResetEmail).toHaveBeenCalledTimes(3);
+  });
+
   it("still succeeds when the email provider fails", async () => {
     await createUser(db);
     email.sendPasswordResetEmail.mockRejectedValueOnce(new Error("resend down"));
@@ -203,7 +336,7 @@ describe("password reset", () => {
 
   it("rejects unknown and expired tokens", async () => {
     const { user } = await createUser(db);
-    await db.insert(passwordResetTokens).values({ userId: user.id, token: "expired", expiresAt: new Date(Date.now() - 1000) });
+    await db.insert(passwordResetTokens).values({ userId: user.id, token: hashResetToken("expired"), expiresAt: new Date(Date.now() - 1000) });
     expect((await call(resetPassword, "POST", "/auth/reset-password", { body: { token: "nope", new_password: "Password1" } })).json.detail).toBe(
       "Invalid or expired token."
     );

@@ -502,11 +502,126 @@ describe("account, vendors and feedback", () => {
   it("sends feedback without requiring a session", async () => {
     localStorage.clear();
     const server = mockApi({ "POST /feedback": { json: { status: "success" } } });
-    await api.sendFeedback("Bug", "Upload stuck");
-    expect(server.callsTo("POST /feedback")[0].body).toEqual({ type: "Bug", message: "Upload stuck" });
+    await api.sendFeedback("Bug", "Upload stuck", "/app");
+    expect(server.callsTo("POST /feedback")[0].body).toEqual({ type: "Bug", message: "Upload stuck", page: "/app" });
     expect(server.callsTo("POST /feedback")[0].headers.get("Authorization")).toBeNull();
 
     server.set({ "POST /feedback": { status: 500 } });
     await expect(api.sendFeedback("Bug", "x")).rejects.toThrow("Feedback request failed with 500");
+  });
+});
+
+describe("roles and sessions", () => {
+  it("decodes base64url payloads (regression: atob() rejected '-' and '_')", () => {
+    // "subjects?>>" encodes to base64 with '+' and '/', i.e. base64url '-' and '_'.
+    const payload = { sub: "a>>>?b@example.com", exp: Math.floor(Date.now() / 1000) + 60, role: "admin" };
+    const segment = btoa(JSON.stringify(payload)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    expect(segment).toMatch(/[-_]/);
+    localStorage.setItem("token", `h.${segment}.s`);
+    expect(api.decodeToken()).toMatchObject({ sub: "a>>>?b@example.com" });
+    expect(api.isTokenExpired()).toBe(false);
+  });
+
+  it("reads the account type from the token and maps it to its home", () => {
+    expect(api.getRole()).toBeNull();
+    signIn();
+    expect(api.getRole()).toBe("user");
+    signIn({ role: "admin" });
+    expect(api.getRole()).toBe("admin");
+    expect(api.homePathFor("admin")).toBe("/admin");
+    expect(api.homePathFor("user")).toBe("/app");
+    expect(api.homePathFor(null)).toBe("/app");
+  });
+
+  it("stores refreshed tokens and tells same-tab listeners", () => {
+    const listener = vi.fn();
+    window.addEventListener("storage", listener);
+    api.storeToken("new-token");
+    window.removeEventListener("storage", listener);
+    expect(localStorage.getItem("token")).toBe("new-token");
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("keeps this session after a password change and signs out everywhere on request", async () => {
+    signIn();
+    const fresh = makeToken({ ver: 1 });
+    const server = mockApi({
+      "POST /auth/change-password": { json: { message: "ok", access_token: fresh } },
+      "POST /auth/logout-all": { status: 204 },
+    });
+    await api.changePassword("Old-pass1", "New-pass1");
+    expect(localStorage.getItem("token")).toBe(fresh);
+    await api.logoutEverywhere();
+    expect(server.callsTo("POST /auth/logout-all")[0].headers.get("Authorization")).toBe(`Bearer ${fresh}`);
+    expect(localStorage.getItem("token")).toBeNull();
+  });
+
+  it("keeps the session when sign-out-everywhere fails", async () => {
+    signIn();
+    mockApi({ "POST /auth/logout-all": { status: 500 } });
+    await expect(api.logoutEverywhere()).rejects.toThrow("Failed to sign out everywhere.");
+    expect(localStorage.getItem("token")).not.toBeNull();
+  });
+});
+
+describe("checkout confirmation and billing portal", () => {
+  beforeEach(() => {
+    signIn();
+  });
+
+  it("confirms a checkout and swaps in the Pro token it returns", async () => {
+    const pro = makeToken({ plan: "pro" });
+    const server = mockApi({ "POST /billing/confirm": { json: { plan: "pro", status: "complete", access_token: pro } } });
+    await expect(api.confirmCheckout("cs_test_1")).resolves.toEqual({ plan: "pro", status: "complete" });
+    expect(server.callsTo("POST /billing/confirm")[0].body).toEqual({ session_id: "cs_test_1" });
+    expect(localStorage.getItem("token")).toBe(pro);
+  });
+
+  it("leaves the token alone while the checkout is open, and surfaces failures", async () => {
+    const before = localStorage.getItem("token");
+    mockApi({ "POST /billing/confirm": { status: 202, json: { plan: "free", status: "open" } } });
+    await expect(api.confirmCheckout("cs_test_1")).resolves.toEqual({ plan: "free", status: "open" });
+    expect(localStorage.getItem("token")).toBe(before);
+
+    mockApi({ "POST /billing/confirm": { status: 404, json: { detail: "Checkout session not found." } } });
+    await expect(api.confirmCheckout("cs_x")).rejects.toThrow("Checkout session not found.");
+  });
+
+  it("opens the billing portal and shows the server's checkout errors", async () => {
+    mockApi({
+      "POST /billing/portal": { json: { url: "https://billing.stripe.test/p" } },
+      "POST /billing/create-checkout-session": { status: 400, json: { detail: "Already on Pro plan" } },
+    });
+    await expect(api.openBillingPortal()).resolves.toEqual({ url: "https://billing.stripe.test/p" });
+    await expect(api.createCheckoutSession()).rejects.toThrow("Already on Pro plan");
+
+    mockApi({ "POST /billing/portal": { status: 400, json: { detail: "No billing account yet. Upgrade to Pro first." } } });
+    await expect(api.openBillingPortal()).rejects.toThrow("No billing account yet");
+  });
+});
+
+describe("contact form", () => {
+  const message = { name: "Ada", email: "ada@example.com", subject: "Hi", message: "Hello there, team!" };
+
+  it("sends anonymously, or linked to a signed-in customer (never with an admin session)", async () => {
+    const server = mockApi({ "POST /contact": { status: 201, json: { status: "success" } }, "POST /feedback": { json: { status: "success" } } });
+    await api.sendContactMessage(message);
+    expect(server.callsTo("POST /contact")[0].body).toEqual(message);
+    expect(server.callsTo("POST /contact")[0].headers.get("Authorization")).toBeNull();
+
+    const token = signIn();
+    await api.sendContactMessage(message);
+    expect(server.callsTo("POST /contact")[1].headers.get("Authorization")).toBe(`Bearer ${token}`);
+
+    signIn({ role: "admin" });
+    await api.sendFeedback("Bug", "x", "/admin");
+    expect(server.requests.at(-1)?.headers.get("Authorization")).toBeNull();
+  });
+
+  it("surfaces validation and rate-limit errors", async () => {
+    mockApi({ "POST /contact": { status: 422, json: { detail: [{ loc: ["body", "email"], msg: "Please enter a valid email address." }] } } });
+    await expect(api.sendContactMessage(message)).rejects.toThrow("Please enter a valid email address.");
+    mockApi({ "POST /contact": { status: 500, body: "" } });
+    await expect(api.sendContactMessage(message)).rejects.toThrow("We couldn't send your message");
   });
 });

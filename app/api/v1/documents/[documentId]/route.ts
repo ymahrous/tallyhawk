@@ -21,7 +21,8 @@ export const DELETE = route<Params<"documentId">>(async (request, ctx) => {
     await tx.delete(documents).where(eq(documents.id, documentId));
   });
 
-  // Known limitation (unchanged): no recovery if this fails after the rows are gone.
-  await deleteFromStorage(doc.filename);
+  // Known limitation: no recovery if this fails after the rows are gone. Rows from before per-user
+  // storage paths have none, and their key is the filename.
+  await deleteFromStorage(doc.storagePath ?? doc.filename);
   return noContent();
 });

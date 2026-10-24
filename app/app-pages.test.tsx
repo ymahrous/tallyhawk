@@ -11,7 +11,7 @@ import BillingCancelled from "./billing/cancelled/page";
 import { renderWithProviders } from "@/test/render";
 import { accountRoutes, mockApi, type Routes } from "@/test/api-mock";
 import { router, setSearchParams } from "@/test/navigation";
-import { signIn, signInExpired } from "@/test/auth";
+import { makeToken, signIn, signInExpired } from "@/test/auth";
 
 // ResponsiveContainer measures its parent, which is 0×0 in jsdom; give charts a fixed size.
 vi.mock("recharts", async (importOriginal) => {
@@ -300,9 +300,10 @@ describe("account page", () => {
   });
 
   it("validates and changes the password", async () => {
+    const fresh = makeToken({ plan: "free", role: "user", ver: 1 });
     const server = as("free", {
       "GET /quickbooks/status": { json: { connected: false } },
-      "POST /auth/change-password": { json: {} },
+      "POST /auth/change-password": { json: { message: "Password updated successfully.", access_token: fresh, token_type: "bearer", role: "user" } },
     });
     renderWithProviders(<AccountPage />);
 
@@ -325,6 +326,8 @@ describe("account page", () => {
       current_password: "OldSecret1",
       new_password: "NewSecret1",
     });
+    // Other sessions were revoked; this one continues on the token issued with the change.
+    expect(localStorage.getItem("token")).toBe(fresh);
   });
 
   it("surfaces a wrong current password", async () => {
@@ -413,6 +416,45 @@ describe("account page", () => {
     expect(router.push).toHaveBeenCalledWith("/");
   });
 
+  it("shows renewal dates and opens the Stripe billing portal for subscribers", async () => {
+    const server = as("pro", {
+      "GET /quickbooks/status": { json: { connected: false } },
+      "GET /billing/subscription": {
+        json: { plan: "pro", status: "active", current_period_end: "2026-11-23T00:00:00Z", last_renewal_date: "2026-10-23T00:00:00Z", cancel_at_period_end: false, can_manage: true },
+      },
+      "POST /billing/portal": { json: { url: "https://billing.stripe.test/p" } },
+    });
+    renderWithProviders(<AccountPage />);
+    expect(await screen.findByLabelText("Next Renewal")).toHaveValue("November 23, 2026");
+    await userEvent.click(screen.getByRole("button", { name: "Manage billing" }));
+    await waitFor(() => expect(server.callsTo("POST /billing/portal")).toHaveLength(1));
+  });
+
+  it("says when Pro is ending or a payment failed", async () => {
+    as("pro", {
+      "GET /quickbooks/status": { json: { connected: false } },
+      "GET /billing/subscription": {
+        json: { plan: "pro", status: "past_due", current_period_end: "2026-11-23T00:00:00Z", last_renewal_date: null, cancel_at_period_end: true, can_manage: true },
+      },
+      "POST /billing/portal": { status: 502, json: { detail: "Couldn't open the billing portal. Please try again." } },
+    });
+    renderWithProviders(<AccountPage />);
+    expect(await screen.findByText("Payment issue")).toBeInTheDocument();
+    expect(screen.getByLabelText("Pro Ends On")).toHaveValue("November 23, 2026");
+    await userEvent.click(screen.getByRole("button", { name: "Manage billing" }));
+    expect(await screen.findByText("Couldn't open the billing portal. Please try again.")).toBeInTheDocument();
+  });
+
+  it("signs out of every device", async () => {
+    const server = as("free", { "GET /quickbooks/status": { json: { connected: false } }, "POST /auth/logout-all": { status: 204 } });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderWithProviders(<AccountPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Sign out of all devices →" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/login"));
+    expect(server.callsTo("POST /auth/logout-all")).toHaveLength(1);
+    expect(localStorage.getItem("token")).toBeNull();
+  });
+
   it("signs out of the current session", async () => {
     as("free", { "GET /quickbooks/status": { json: { connected: false } } });
     renderWithProviders(<AccountPage />);
@@ -477,34 +519,68 @@ describe("capture page", () => {
 });
 
 describe("billing return pages", () => {
-  it("confirms Pro and forces a fresh login once the webhook has landed", async () => {
+  it("confirms the checkout by its session id and swaps in a Pro token, without signing out", async () => {
+    const proToken = makeToken({ plan: "pro", role: "user" });
+    setSearchParams({ session_id: "cs_test_123" });
+    const server = as("free", {
+      "POST /billing/confirm": { json: { plan: "pro", status: "complete", access_token: proToken, token_type: "bearer", role: "user" } },
+    });
+    renderWithProviders(<BillingSuccess />);
+
+    expect(await screen.findByRole("heading", { name: "Welcome to Pro!" })).toBeInTheDocument();
+    expect(server.callsTo("POST /billing/confirm")[0].body).toEqual({ session_id: "cs_test_123" });
+    // Regression: the page used to delete the token and send the user to /login.
+    expect(localStorage.getItem("token")).toBe(proToken);
+    expect(router.push).not.toHaveBeenCalledWith("/login");
+    expect(screen.getByRole("link", { name: "Go to Dashboard" })).toHaveAttribute("href", "/app");
+  });
+
+  it("keeps checking while Stripe finishes, then says it's still processing", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    as("pro");
+    setSearchParams({ session_id: "cs_test_123" });
+    const server = as("free", { "POST /billing/confirm": { status: 202, json: { plan: "free", status: "open" } } });
     renderWithProviders(<BillingSuccess />);
     expect(screen.getByRole("heading", { name: "Confirming Subscription..." })).toBeInTheDocument();
 
-    await act(() => vi.advanceTimersByTimeAsync(2100));
-    expect(await screen.findByRole("heading", { name: "Welcome to Pro!" })).toBeInTheDocument();
-
-    await act(() => vi.advanceTimersByTimeAsync(2100));
-    expect(localStorage.getItem("token")).toBeNull();
-    expect(router.push).toHaveBeenCalledWith("/login");
+    await act(() => vi.advanceTimersByTimeAsync(16_000));
+    expect(await screen.findByRole("heading", { name: "Payment Processing" })).toBeInTheDocument();
+    expect(screen.getByText(/no need to sign out/)).toBeInTheDocument();
+    expect(server.callsTo("POST /billing/confirm")).toHaveLength(8);
   });
 
-  it("explains a delayed webhook", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    as("free");
+  it("falls back to the plan from the API when Stripe didn't pass a session id", async () => {
+    as("pro");
     renderWithProviders(<BillingSuccess />);
-    await act(() => vi.advanceTimersByTimeAsync(2100));
+    expect(await screen.findByRole("heading", { name: "Welcome to Pro!" })).toBeInTheDocument();
+  });
+
+  it("explains a confirmation failure", async () => {
+    setSearchParams({ session_id: "cs_test_123" });
+    as("free", { "POST /billing/confirm": { status: 404, json: { detail: "Checkout session not found." } } });
+    renderWithProviders(<BillingSuccess />);
     expect(await screen.findByRole("heading", { name: "Payment Processing" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Go to Dashboard" }));
-    expect(router.push).toHaveBeenCalledWith("/app");
+    expect(screen.getByText(/Checkout session not found/)).toBeInTheDocument();
   });
 
   it("reassures after a cancelled checkout", async () => {
     renderWithProviders(<BillingCancelled />);
     expect(screen.getByText("You were not charged. You can upgrade anytime.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Back to Pricing" }));
-    expect(router.push).toHaveBeenCalledWith("/pricing");
+    expect(screen.getByRole("link", { name: "Back to Pricing" })).toHaveAttribute("href", "/pricing");
+  });
+});
+
+describe("customer pages are for customers only", () => {
+  it.each([
+    ["dashboard-adjacent analytics", AnalyticsPage],
+    ["vendors", VendorsPage],
+    ["account", AccountPage],
+    ["capture", CapturePage],
+    ["billing success", BillingSuccess],
+  ])("%s sends an admin to the admin dashboard without calling customer APIs", (_name, Page) => {
+    signIn({ role: "admin", plan: undefined });
+    const server = mockApi();
+    renderWithProviders(<Page />);
+    expect(router.replace).toHaveBeenCalledWith("/admin");
+    expect(server.requests.filter((r) => r.path !== "/quickbooks/status")).toEqual([]);
   });
 });

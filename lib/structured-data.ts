@@ -102,7 +102,7 @@ interface WebPageOptions {
   path: string;
   name: string;
   description: string;
-  type?: "WebPage" | "AboutPage" | "FAQPage" | "CollectionPage";
+  type?: "WebPage" | "AboutPage" | "FAQPage" | "CollectionPage" | "ContactPage";
   /** Breadcrumb trail below the home page, e.g. [{ name: "Pricing", path: "/pricing" }]. */
   breadcrumb?: { name: string; path: string }[];
 }

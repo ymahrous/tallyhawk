@@ -2,12 +2,11 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "@/server/db";
-import { documents, extractions, feedback, usageRecords, vendors } from "@/server/db/schema";
+import { documents, extractions, usageRecords, vendors } from "@/server/db/schema";
 import { call, createDocument, createTestDb, createUser, resetTestDb } from "@/test/server";
 import { GET as monthlyTrend } from "./analytics/monthly-trend/route";
 import { GET as byCategory } from "./analytics/spend-by-category/route";
 import { GET as byVendor } from "./analytics/spend-by-vendor/route";
-import { POST as submitFeedback } from "./feedback/route";
 import { GET as dashboard } from "./stats/dashboard/route";
 import { POST as merge } from "./vendors/[vendorId]/merge/route";
 import { PATCH as rename } from "./vendors/[vendorId]/rename/route";
@@ -165,14 +164,5 @@ describe("vendors", () => {
     expect((await call(merge, "POST", `/vendors/${mine.id}/merge`, { token, body: { target_vendor_id: theirs.id }, params: { vendorId: mine.id } })).status).toBe(404);
     expect((await call(merge, "POST", `/vendors/${mine.id}/merge`, { token, body: { target_vendor_id: mine.id }, params: { vendorId: mine.id } })).status).toBe(404);
     expect(await db.select().from(vendors)).toHaveLength(2);
-  });
-});
-
-describe("feedback", () => {
-  it("accepts anonymous feedback", async () => {
-    const res = await call(submitFeedback, "POST", "/feedback", { body: { type: "Bug", message: "Upload stuck" } });
-    expect(res.json).toEqual({ status: "success" });
-    expect((await db.select().from(feedback))[0]).toMatchObject({ type: "Bug", message: "Upload stuck", userId: null });
-    expect((await call(submitFeedback, "POST", "/feedback", { body: { type: "Bug" } })).status).toBe(422);
   });
 });

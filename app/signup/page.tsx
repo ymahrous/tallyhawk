@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { isTokenExpired, signup } from "@/lib/api";
+import { getRole, homePathFor, isTokenExpired, signup } from "@/lib/api";
 import { useTheme } from "@/app/providers/ThemeContext";
 import PasswordToggle from "@/components/ui/PasswordToggle";
 import { validateEmail, validatePassword } from "@/lib/validation";
@@ -28,7 +28,7 @@ export default function SignupPage() {
   const [emailError, setEmailError] = useState("");
 
   useEffect(() => {
-    if (!isTokenExpired()) router.push("/app");
+    if (!isTokenExpired()) router.push(homePathFor(getRole()));
   }, [router]);
 
   useEffect(() => {

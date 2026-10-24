@@ -8,6 +8,7 @@ import * as terms from "./terms/layout";
 import * as signup from "./signup/layout";
 import * as login from "./login/layout";
 import * as pricing from "./pricing/page";
+import * as contact from "./contact/page";
 import * as home from "./page";
 import * as forgotPassword from "./forgot-password/layout";
 import * as resetPassword from "./reset-password/layout";
@@ -17,6 +18,7 @@ import * as dashboard from "./app/layout";
 import * as capture from "./capture/layout";
 import * as vendors from "./vendors/layout";
 import * as billing from "./billing/layout";
+import * as admin from "./admin/layout";
 
 const PUBLIC: Record<string, { metadata: Metadata }> = {
   "/": home,
@@ -26,6 +28,7 @@ const PUBLIC: Record<string, { metadata: Metadata }> = {
   "/privacy": privacy,
   "/terms": terms,
   "/accessibility": accessibility,
+  "/contact": contact,
 };
 
 const PRIVATE = {
@@ -38,6 +41,9 @@ const PRIVATE = {
   vendors,
   billing,
 };
+
+// The admin layout wraps its pages in the admin guard (AdminShell), so it renders nothing for a
+// signed-out visitor; its metadata is checked on its own below.
 
 describe("public route metadata", () => {
   it("covers exactly the routes in the sitemap", () => {
@@ -101,5 +107,12 @@ describe("private route metadata", () => {
       </layout.default>
     );
     expect(container).toHaveTextContent("child");
+  });
+});
+
+describe("admin route metadata", () => {
+  it("is noindex without a canonical", () => {
+    expect(admin.metadata.robots).toMatchObject({ index: false, follow: false });
+    expect(admin.metadata.alternates).toBeUndefined();
   });
 });

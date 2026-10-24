@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isTokenExpired, login } from "@/lib/api";
+import { getRole, homePathFor, isTokenExpired, login } from "@/lib/api";
 import { validateEmail } from "@/lib/validation";
 import { useTheme } from "../providers/ThemeContext";
 import PasswordToggle from "@/components/ui/PasswordToggle";
@@ -23,9 +23,10 @@ export default function LoginPage() {
   const [lockSecondsRemaining, setLockSecondsRemaining] = useState(0);
   const [emailError, setEmailError] = useState("");
 
+  // Already signed in (or just signed in, after the reload below): go to this account type's home.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!isTokenExpired()) router.push("/app");
+    if (!isTokenExpired()) router.push(homePathFor(getRole()));
   }, [router]);
 
   useEffect(() => {
@@ -87,7 +88,8 @@ export default function LoginPage() {
 
     try {
       await login(trimmedEmail, password);
-      // Full reload so every provider (plan, settings) re-initializes from the new token
+      // Full reload so every provider (plan, settings) re-initializes from the new token; the
+      // effect above then sends admins to /admin and customers to /app.
       window.location.reload();
     } catch (err: unknown) {
       const newAttempts = attempts + 1;

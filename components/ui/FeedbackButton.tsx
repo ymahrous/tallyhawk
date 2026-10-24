@@ -1,42 +1,45 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { sendFeedback } from "@/lib/api";
-const feedbackTypes = ["Suggestion", "Bug", "Other"];
+import { FEEDBACK_TYPES, MAX_FEEDBACK_LENGTH, type FeedbackType } from "@/lib/support";
+import { useSessionRole } from "@/lib/useSessionRole";
+
 const ChatIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
   </svg>
 );
 
-const sanitizeFeedback = (str: string): string => {
-    return str
-      .replace(/</g, "&lt;") // Basic XSS prevention
-      .replace(/>/g, "&gt;")
-      .trim(); // Strip leading/trailing whitespace
-  };
-
 export default function FeedbackButton() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const pathname = usePathname();
+  const role = useSessionRole();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [activeType, setActiveType] = useState("Suggestion");
+  const [activeType, setActiveType] = useState<FeedbackType>("Suggestion");
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [error, setError] = useState("");
 
+  // Feedback comes from customers and visitors; admins read it in the dashboard instead.
+  if (role === "admin" || pathname?.startsWith("/admin")) return null;
 
   const handleSend = async () => {
-    if (!text.trim()) return;
-    const sanitizedText = sanitizeFeedback(text);
-    if (!sanitizedText) return;
+    // Sent as typed (trimmed): React escapes it wherever it's displayed, so escaping here would
+    // only mangle "<" and ">" in the message.
+    const message = text.trim();
+    if (!message) return;
 
     setIsSending(true);
+    setError("");
 
     try {
-      await sendFeedback(activeType, sanitizedText);
+      await sendFeedback(activeType, message, pathname || undefined);
 
       setIsSent(true);
       setTimeout(() => {
@@ -44,9 +47,8 @@ export default function FeedbackButton() {
         setText("");
         setIsSent(false);
       }, 1500);
-    } catch (error) {
-      console.error("Failed to send feedback", error);
-      alert("Failed to send feedback. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send feedback. Please try again.");
     } finally {
       setIsSending(false);
     }
@@ -100,7 +102,7 @@ export default function FeedbackButton() {
 
           {/* Segmented Control for Type */}
           <div className="flex gap-2">
-            {feedbackTypes.map((type) => (
+            {FEEDBACK_TYPES.map((type) => (
               <button
                 key={type}
                 onClick={() => setActiveType(type)}
@@ -124,6 +126,7 @@ export default function FeedbackButton() {
           <textarea
             aria-label="Feedback message"
             value={text}
+            maxLength={MAX_FEEDBACK_LENGTH}
             onChange={(e) => setText(e.target.value)}
             placeholder={
               activeType === "Suggestion"
@@ -138,6 +141,10 @@ export default function FeedbackButton() {
                 : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:ring-gray-300 focus:border-gray-300"
             }`}
           />
+
+          {error && (
+            <p role="alert" className="text-sm text-red-500">{error}</p>
+          )}
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3">

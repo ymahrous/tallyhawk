@@ -12,9 +12,13 @@ export interface Document {
   flags?: string | null;
 }
 
-interface AuthResponse {
+/** Customer ("user") or staff ("admin"). Separate account types with separate app surfaces. */
+export type Role = "user" | "admin";
+
+export interface AuthResponse {
   access_token: string;
   token_type: string;
+  role?: Role;
 }
 
 export interface VendorData {
@@ -49,6 +53,8 @@ export type TokenPayload = {
   sub: string;
   exp: number;
   plan?: string;
+  /** "admin" for admin sessions; customer sessions say "user" (older ones carry no role). */
+  role?: string;
   iat?: number;
   [key: string]: unknown;
 };
@@ -58,6 +64,10 @@ export interface SubscriptionData {
   status: string;
   current_period_end: string | null;
   last_renewal_date: string | null;
+  /** The subscription ends at current_period_end instead of renewing. */
+  cancel_at_period_end?: boolean;
+  /** There's a Stripe customer, so the billing portal can be opened. */
+  can_manage?: boolean;
 }
 
 export async function getSubscription(): Promise<SubscriptionData> {
@@ -83,14 +93,40 @@ export function errorMessage(data: unknown, fallback: string): string {
   return typeof message === "string" && message ? message : fallback;
 }
 
+/** Decodes a JWT segment. JWTs are base64url (with `-`, `_` and no padding), which atob() rejects as is. */
+function decodeSegment(segment: string): unknown {
+  const base64 = segment.replace(/-/g, "+").replace(/_/g, "/");
+  const binary = atob(base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "="));
+  return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0))));
+}
+
+/** The session token's claims (unverified: the server checks every request). */
 export function decodeToken(): TokenPayload | null {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   if (!token) return null;
   try {
-    return JSON.parse(atob(token.split(".")[1]));
+    return decodeSegment(token.split(".")[1]) as TokenPayload;
   } catch {
     return null;
   }
+}
+
+/** The signed-in account's type, or null when signed out. Decides which app the UI shows. */
+export function getRole(): Role | null {
+  const payload = decodeToken();
+  if (!payload) return null;
+  return payload.role === "admin" ? "admin" : "user";
+}
+
+/** Where an account type lands after signing in. */
+export function homePathFor(role: Role | null): string {
+  return role === "admin" ? "/admin" : "/app";
+}
+
+/** Saves a (new or refreshed) session token and tells same-tab listeners, like logout() does. */
+export function storeToken(token: string) {
+  localStorage.setItem("token", token);
+  window.dispatchEvent(new Event("storage"));
 }
 
 // --- AUTH FUNCTIONS ---
@@ -138,19 +174,14 @@ export async function signup(email: string, password: string): Promise<void> {
 }
 
 export function isTokenExpired(): boolean {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  if (!token) return true;
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    // exp is in seconds; Date.now() is in ms
-    return payload.exp * 1000 < Date.now();
-  } catch {
-    return true;
-  }
+  const payload = decodeToken();
+  // exp is in seconds; Date.now() is in ms
+  return !payload || typeof payload.exp !== "number" || payload.exp * 1000 < Date.now();
 }
 
 // --- PROTECTED FETCH WRAPPER ---
-async function authFetch(url: string, options: RequestInit = {}) {
+/** fetch() with the session token. A 401 (expired, revoked or suspended session) signs the user out. */
+export async function authFetch(url: string, options: RequestInit = {}) {
   if (isTokenExpired()) {
     if (typeof window !== "undefined") localStorage.removeItem("token");
     throw new Error("Session expired");
@@ -248,7 +279,42 @@ export async function createCheckoutSession(): Promise<{ url: string }> {
   const res = await authFetch(`${API_URL}/billing/create-checkout-session`, {
     method: "POST",
   });
-  if (!res.ok) throw new Error("Failed to create checkout session");
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(errorMessage(data, "Failed to create checkout session"));
+  }
+  return res.json();
+}
+
+export interface CheckoutConfirmation {
+  plan: string;
+  /** "complete" once Stripe has finished the checkout; "open" while it hasn't yet. */
+  status: string;
+}
+
+/**
+ * Confirms a finished Stripe Checkout by its session id (from the success URL). On completion the
+ * response carries a fresh session token with the new plan, which replaces the stored one.
+ */
+export async function confirmCheckout(sessionId: string): Promise<CheckoutConfirmation> {
+  const res = await authFetch(`${API_URL}/billing/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(errorMessage(data, "Couldn't confirm your payment"));
+  if (data?.access_token) storeToken(data.access_token);
+  return { plan: data.plan, status: data.status };
+}
+
+/** A Stripe Customer Portal URL for updating the card, viewing invoices or cancelling. */
+export async function openBillingPortal(): Promise<{ url: string }> {
+  const res = await authFetch(`${API_URL}/billing/portal`, { method: "POST" });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(errorMessage(data, "Couldn't open the billing portal"));
+  }
   return res.json();
 }
 
@@ -397,10 +463,17 @@ export async function changePassword(currentPassword: string, newPassword: strin
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
   });
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    throw new Error(errorMessage(data, "Failed to change password."));
-  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(errorMessage(data, "Failed to change password."));
+  // Other sessions were signed out; this one continues on the token issued with the change.
+  if (data?.access_token) storeToken(data.access_token);
+}
+
+/** Signs this account out on every device, this one included. */
+export async function logoutEverywhere(): Promise<void> {
+  const res = await authFetch(`${API_URL}/auth/logout-all`, { method: "POST" });
+  if (!res.ok && res.status !== 204) throw new Error("Failed to sign out everywhere.");
+  logout();
 }
 
 export async function deleteAccount(): Promise<void> {
@@ -443,12 +516,43 @@ export async function mergeVendors(sourceId: string, targetId: string): Promise<
   }
 }
 
-// --- FEEDBACK (open to signed-out visitors, so no auth header) ---
-export async function sendFeedback(type: string, message: string): Promise<void> {
+// --- FEEDBACK AND CONTACT (open to signed-out visitors) ---
+
+/** The session header when a valid-looking customer session exists, so the message is linked to them. */
+function optionalAuthHeader(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  return token && !isTokenExpired() && getRole() === "user" ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function sendFeedback(type: string, message: string, page?: string): Promise<void> {
   const res = await fetch(`${API_URL}/feedback`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type, message }),
+    headers: { "Content-Type": "application/json", ...optionalAuthHeader() },
+    body: JSON.stringify({ type, message, ...(page ? { page } : {}) }),
   });
-  if (!res.ok) throw new Error(`Feedback request failed with ${res.status}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(errorMessage(data, `Feedback request failed with ${res.status}`));
+  }
+}
+
+export interface ContactMessage {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  /** Honeypot, left empty by people. */
+  website?: string;
+}
+
+export async function sendContactMessage(message: ContactMessage): Promise<void> {
+  const res = await fetch(`${API_URL}/contact`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...optionalAuthHeader() },
+    body: JSON.stringify(message),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(errorMessage(data, "We couldn't send your message. Please try again."));
+  }
 }

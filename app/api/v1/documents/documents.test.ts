@@ -14,7 +14,7 @@ import { POST as upload } from "../upload/route";
 
 vi.mock("@/server/background", async () => (await import("@/test/server")).backgroundMock);
 const storage = vi.hoisted(() => ({
-  uploadToStorage: vi.fn(async (_bytes: Uint8Array, path: string) => `https://bucket.test/${path}`),
+  uploadToStorage: vi.fn(async (...[, path]: [bytes: Uint8Array, path: string, contentType: string]) => `https://bucket.test/${path}`),
   deleteFromStorage: vi.fn(async () => {}),
 }));
 vi.mock("@/server/storage", () => storage);
@@ -43,10 +43,13 @@ describe("upload", () => {
 
     expect(res.status).toBe(200);
     expect(res.json).toMatchObject({ message: "Document received!", status: "PENDING" });
-    expect(storage.uploadToStorage).toHaveBeenCalledWith(expect.any(Uint8Array), "receipt.pdf");
+    // Stored under the owner's folder with an unguessable name and the sniffed content type.
+    const [, storagePath, contentType] = storage.uploadToStorage.mock.calls[0] as unknown as [Uint8Array, string, string];
+    expect(storagePath).toMatch(new RegExp(`^${user.id}/[0-9a-f-]{36}\\.pdf$`));
+    expect(contentType).toBe("application/pdf");
 
     const [doc] = await db.select().from(documents).where(eq(documents.id, res.json.document_id));
-    expect(doc).toMatchObject({ ownerId: user.id, s3Url: "https://bucket.test/receipt.pdf", status: "PENDING", quickbooksSynced: false });
+    expect(doc).toMatchObject({ ownerId: user.id, filename: "receipt.pdf", storagePath, s3Url: `https://bucket.test/${storagePath}`, status: "PENDING", quickbooksSynced: false });
 
     await flushBackground();
     expect(pipeline.processDocument).toHaveBeenCalledWith(doc.id);
@@ -90,6 +93,41 @@ describe("upload", () => {
     expect(await db.select().from(usageRecords)).toEqual([]);
   });
 
+  it("checks the bytes, not just the name (regression: an HTML page renamed .png was stored and served)", async () => {
+    const { token } = await createUser(db);
+    const html = await call(upload, "POST", "/upload", { token, body: fileForm("receipt.pdf", "<html><script>alert(1)</script>") });
+    expect(html).toMatchObject({ status: 400, json: { detail: expect.stringContaining("don't match its extension") } });
+
+    // A real PNG named .pdf is refused too: the extension has to tell the truth.
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+    expect((await call(upload, "POST", "/upload", { token, body: fileForm("receipt.pdf", png) })).status).toBe(400);
+    expect(storage.uploadToStorage).not.toHaveBeenCalled();
+
+    const form = new FormData();
+    form.append("file", new File([png], "photo.PNG", { type: "image/png" }));
+    expect((await call(upload, "POST", "/upload", { token, body: form })).status).toBe(200);
+    expect(storage.uploadToStorage.mock.calls[0][2]).toBe("image/png");
+  });
+
+  it("gives same-named uploads separate files (regression: they overwrote each other across accounts)", async () => {
+    const ada = await createUser(db);
+    const bob = await createUser(db, { username: "bob@test.com" });
+    await call(upload, "POST", "/upload", { token: ada.token, body: fileForm("../../receipt.pdf") });
+    await call(upload, "POST", "/upload", { token: bob.token, body: fileForm("receipt.pdf") });
+    const [first, second] = storage.uploadToStorage.mock.calls.map((c) => c[1]);
+    expect(first).not.toBe(second);
+    expect(first.startsWith(`${ada.user.id}/`)).toBe(true);
+    expect(second.startsWith(`${bob.user.id}/`)).toBe(true);
+    // The display name loses its directory part.
+    expect((await db.select().from(documents)).map((d) => d.filename).sort()).toEqual(["receipt.pdf", "receipt.pdf"]);
+  });
+
+  it("refuses an oversized body before reading it", async () => {
+    const { token } = await createUser(db);
+    const res = await call(upload, "POST", "/upload", { token, body: fileForm(), headers: { "content-length": String(20 * 1024 * 1024) } });
+    expect(res.status).toBe(413);
+  });
+
   it("requires authentication", async () => {
     expect((await call(upload, "POST", "/upload", { body: fileForm() })).status).toBe(401);
   });
@@ -116,7 +154,16 @@ describe("documents", () => {
     expect(res.status).toBe(204);
     expect(await db.select().from(documents)).toEqual([]);
     expect(await db.select().from(extractions)).toEqual([]);
+    // A legacy row without a storage path: its key is the filename.
     expect(storage.deleteFromStorage).toHaveBeenCalledWith("test.pdf");
+  });
+
+  it("deletes the document's own storage object when it has one", async () => {
+    const { user, token } = await createUser(db);
+    const { doc } = await createDocument(db, { ownerId: user.id, filename: "test.pdf" });
+    await db.update(documents).set({ storagePath: `${user.id}/abc.pdf` }).where(eq(documents.id, doc.id));
+    await call(deleteDocument, "DELETE", `/documents/${doc.id}`, { token, params: { documentId: doc.id } });
+    expect(storage.deleteFromStorage).toHaveBeenCalledWith(`${user.id}/abc.pdf`);
   });
 
   it("won't delete someone else's document", async () => {

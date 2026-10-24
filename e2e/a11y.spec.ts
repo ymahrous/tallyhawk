@@ -4,7 +4,7 @@ import { test, expect } from "./support/fixtures";
 // Automated WCAG 2.1 A/AA checks on every public page in both themes. Automated checks catch
 // roughly a third of issues; the accessibility statement lists what still needs manual testing.
 
-const PAGES = ["/", "/pricing", "/signup", "/login", "/privacy", "/terms", "/accessibility"];
+const PAGES = ["/", "/pricing", "/signup", "/login", "/contact", "/privacy", "/terms", "/accessibility"];
 
 for (const theme of ["light", "dark"] as const) {
   test.describe(`${theme} theme`, () => {

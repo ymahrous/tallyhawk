@@ -53,3 +53,16 @@ describe("getPasswordStrength", () => {
     expect(getPasswordStrength("abc").color).toBe("bg-red-500");
   });
 });
+
+describe("length limits", () => {
+  it("rejects emails longer than RFC 5321 allows", () => {
+    expect(validateEmail(`${"a".repeat(250)}@b.co`)).toBe("Email address is too long.");
+  });
+
+  it("rejects passwords bcrypt would silently truncate (over 72 bytes)", () => {
+    expect(validatePassword(`A1${"x".repeat(70)}`)).toBe("");
+    expect(validatePassword(`A1${"x".repeat(71)}`)).toBe("Password must be at most 72 characters.");
+    // Bytes, not characters: 25 three-byte characters are 75 bytes.
+    expect(validatePassword(`A1${"€".repeat(25)}`)).toBe("Password must be at most 72 characters.");
+  });
+});

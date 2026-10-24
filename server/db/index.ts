@@ -4,6 +4,8 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 
 export type Db = NodePgDatabase<typeof schema>;
+/** The database or an open transaction: anything that can run queries. */
+export type Executor = Pick<Db, "select" | "insert" | "update" | "delete">;
 
 // One pool per server instance. In dev, Next re-evaluates modules on every edit, so the pool is
 // parked on globalThis to avoid leaking connections across hot reloads.

@@ -1,9 +1,9 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { vi } from "vitest";
-import { createAccessToken, hashPassword } from "@/server/auth";
+import { createSessionToken, hashPassword } from "@/server/auth";
 import { setDb, type Db } from "@/server/db";
 import * as schema from "@/server/db/schema";
 
@@ -16,13 +16,32 @@ import * as schema from "@/server/db/schema";
 //   beforeAll(async () => (db = await createTestDb()));
 //   beforeEach(() => resetTestDb(db));
 
-const MIGRATION = readFileSync(new URL("../server/db/migrations/0000_init.sql", import.meta.url), "utf8");
-const TABLES = ["extraction", "document", "vendor", "subscription", "usagerecord", "quickbooksconnection", "feedback", "passwordresettoken", '"user"'];
+const MIGRATIONS_DIR = new URL("../server/db/migrations/", import.meta.url);
+const MIGRATIONS = readdirSync(MIGRATIONS_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(new URL(f, MIGRATIONS_DIR), "utf8"));
+const TABLES = [
+  "extraction",
+  "document",
+  "vendor",
+  "subscription",
+  "usagerecord",
+  "quickbooksconnection",
+  "feedback",
+  "contactmessage",
+  "passwordresettoken",
+  "auditlog",
+  "stripeevent",
+  "ratelimit",
+  '"user"',
+];
 
 export async function createTestDb(): Promise<Db> {
   const client = new PGlite();
-  await client.exec(MIGRATION);
-  await client.exec(MIGRATION); // idempotent: must survive re-running against an existing schema
+  for (const sql of MIGRATIONS) await client.exec(sql);
+  // Idempotent: every migration must survive re-running against an existing schema.
+  for (const sql of MIGRATIONS) await client.exec(sql);
   const db = drizzle(client, { schema }) as unknown as Db;
   setDb(db);
   return db;
@@ -49,16 +68,31 @@ export async function flushBackground() {
 
 // --- fixtures ------------------------------------------------------------------------------------
 
+interface UserFixture {
+  username?: string;
+  password?: string;
+  plan?: string;
+  baseCurrency?: string;
+  role?: schema.AccountRole;
+  status?: schema.AccountStatus;
+}
+
+/** A customer (or, with `role: "admin"`, an admin) plus a valid session token for them. */
 export async function createUser(
   db: Db,
-  { username = "ada@example.com", password = "Password1!", plan = "free", baseCurrency = "USD" } = {}
+  { username = "ada@example.com", password = "Password1!", plan = "free", baseCurrency = "USD", role = "user", status = "active" }: UserFixture = {}
 ) {
   const [user] = await db
     .insert(schema.users)
-    .values({ username, hashedPassword: await hashPassword(password), plan, baseCurrency })
+    .values({ username, hashedPassword: await hashPassword(password), plan, baseCurrency, role, status })
     .returning();
-  const token = await createAccessToken({ sub: username, plan });
+  const token = await createSessionToken(user);
   return { user, token, password };
+}
+
+/** An admin account and an admin session token. */
+export function createAdmin(db: Db, fixture: Omit<UserFixture, "role" | "plan" | "baseCurrency"> = {}) {
+  return createUser(db, { username: "admin@tallyhawk.test", password: "Admin-pass1", ...fixture, role: "admin" });
 }
 
 interface DocFixture {

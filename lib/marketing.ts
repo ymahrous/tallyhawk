@@ -176,10 +176,21 @@ export const PRICING_FAQ: readonly FaqItem[] = [
   {
     question: "Can I cancel Pro at any time?",
     answer:
-      "Yes. Cancel whenever you like and keep Pro features until the end of the current billing period. Partial refunds aren't provided for unused time.",
+      "Yes. Cancel whenever you like from Account → Manage billing and keep Pro features until the end of the current billing period. Partial refunds aren't provided for unused time.",
   },
   {
     question: "Which currency am I billed in?",
     answer: `All subscriptions are billed in US dollars (USD) through Stripe. Your documents can still be in any of the ${currencyCount} supported currencies.`,
   },
 ];
+
+/** The public contact page (/contact). Messages land in the admin dashboard's contact inbox. */
+export const CONTACT_PAGE = {
+  title: "Contact",
+  description:
+    "Contact the Tallyhawk team about billing, your account, privacy or data requests, partnerships or anything else. Send a message and we'll reply by email.",
+  heading: "Get in touch",
+  intro:
+    "Questions about billing, your account, a privacy or data request, or something else? Send us a message and we'll reply by email.",
+  feedbackHint: "Found a bug or have a feature idea? The feedback button in the corner of every page goes straight to the team too.",
+} as const;

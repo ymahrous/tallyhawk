@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/app/providers/ThemeContext";
-import { getVendors, isTokenExpired, mergeVendors, renameVendor, type VendorData } from "@/lib/api";
+import { getVendors, mergeVendors, renameVendor, type VendorData } from "@/lib/api";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 import { useRouter } from "next/navigation";
 
 export default function VendorsPage() {
@@ -32,14 +33,11 @@ export default function VendorsPage() {
   }, [router]);
 
   // Auth guard (localStorage is only readable after mount), then load.
+  const allowed = useAuthGuard("user");
   useEffect(() => {
     setIsMounted(true);
-    if (isTokenExpired()) {
-      router.push("/login");
-      return;
-    }
-    fetchVendors();
-  }, [router, fetchVendors]);
+    if (allowed) fetchVendors();
+  }, [allowed, fetchVendors]);
 
   const handleRename = async (vendorId: string, currentName: string) => {
     const newName = prompt("Enter new vendor name:", currentName);

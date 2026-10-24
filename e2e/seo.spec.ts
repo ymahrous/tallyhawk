@@ -14,6 +14,8 @@ const PRIVATE_PAGES = [
   "/billing/success",
   "/forgot-password",
   "/reset-password",
+  "/admin",
+  "/admin/users",
 ];
 
 function meta(html: string, attr: "name" | "property", key: string): string | null {
@@ -114,6 +116,7 @@ test.describe("crawler files", () => {
     const text = await (await request.get("/robots.txt")).text();
     expect(text).toContain("Disallow: /app$");
     expect(text).toContain("Disallow: /account");
+    expect(text).toContain("Disallow: /admin");
     expect(text).not.toMatch(/^Disallow: \/app$/m);
     for (const bot of ["OAI-SearchBot", "PerplexityBot", "Claude-SearchBot", "GPTBot"]) {
       expect(text).toContain(`User-Agent: ${bot}`);
@@ -157,6 +160,24 @@ test.describe("crawler files", () => {
     for (const path of ["/favicon.ico", "/icon.svg", "/apple-icon.png", "/logo.png", "/logo.svg"]) {
       expect((await request.get(path)).status(), path).toBe(200);
     }
+  });
+});
+
+test.describe("security headers", () => {
+  test("pages forbid framing, sniffing and foreign scripts, and API responses aren't cached", async ({ request }) => {
+    const headers = (await request.get("/")).headers();
+    expect(headers["x-frame-options"]).toBe("DENY");
+    expect(headers["x-content-type-options"]).toBe("nosniff");
+    expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+    expect(headers["strict-transport-security"]).toContain("max-age=");
+    expect(headers["x-powered-by"]).toBeUndefined();
+    const csp = headers["content-security-policy"];
+    for (const directive of ["default-src 'self'", "object-src 'none'", "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'"]) {
+      expect(csp).toContain(directive);
+    }
+
+    const api = (await request.get("/api/v1/billing/usage")).headers();
+    expect(api["cache-control"]).toContain("no-store");
   });
 });
 

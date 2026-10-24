@@ -28,7 +28,7 @@ export default defineConfig({
       name: "mobile",
       use: { ...devices["Pixel 7"] },
       // Layout-sensitive journeys only; crawler/metadata checks don't depend on the viewport.
-      testMatch: /(marketing|auth|dashboard)\.spec\.ts/,
+      testMatch: /(marketing|auth|dashboard|admin)\.spec\.ts/,
     },
   ],
   webServer: {

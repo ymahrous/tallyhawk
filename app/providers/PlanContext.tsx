@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { getUsage, decodeToken, getSubscription } from "@/lib/api";
+import { getUsage, decodeToken, getRole, getSubscription } from "@/lib/api";
 import { PRODUCT_FACTS } from "@/lib/site";
 
 const FREE_LIMIT = PRODUCT_FACTS.freeDocumentsPerMonth;
@@ -14,6 +14,12 @@ interface PlanData {
   refreshPlan: () => Promise<void>;
   currentPeriodEnd: string | null;
   lastRenewalDate: string | null;
+  /** Stripe's subscription status ("active", "past_due", …), or null without one. */
+  subscriptionStatus: string | null;
+  /** The subscription ends at currentPeriodEnd instead of renewing. */
+  cancelAtPeriodEnd: boolean;
+  /** A Stripe customer exists, so the billing portal can be opened. */
+  canManageBilling: boolean;
 }
 
 const PlanContext = createContext<PlanData>({
@@ -24,13 +30,17 @@ const PlanContext = createContext<PlanData>({
   refreshPlan: async () => {},
   currentPeriodEnd: null,
   lastRenewalDate: null,
+  subscriptionStatus: null,
+  cancelAtPeriodEnd: false,
+  canManageBilling: false,
 });
 
-// NEW: Helper function to read the JWT instantly before the first render
+// Reads the JWT synchronously so the first render doesn't flicker. Admin sessions have no plan:
+// admins aren't customers.
 function getInitialPlan(): string | null {
-  if (typeof window === "undefined") return null; 
+  if (typeof window === "undefined") return null;
   const tokenData = decodeToken();
-  return tokenData?.plan || null;
+  return tokenData?.role === "admin" ? null : tokenData?.plan || null;
 }
 
 export function PlanProvider({ children }: { children: ReactNode }) {
@@ -41,8 +51,26 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
   const [lastRenewalDate, setLastRenewalDate] = useState<string | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [canManageBilling, setCanManageBilling] = useState(false);
+
+  const clearSubscription = () => {
+    setCurrentPeriodEnd(null);
+    setLastRenewalDate(null);
+    setSubscriptionStatus(null);
+    setCancelAtPeriodEnd(false);
+    setCanManageBilling(false);
+  };
 
   const refreshPlan = async () => {
+    // Billing endpoints are customer-only; an admin session has nothing to load.
+    if (getRole() === "admin") {
+      setPlan(null);
+      clearSubscription();
+      setIsLoading(false);
+      return;
+    }
     try {
       const usageData = await getUsage();
       setPlan(usageData.plan);
@@ -52,13 +80,15 @@ export function PlanProvider({ children }: { children: ReactNode }) {
       if (usageData.plan === "pro") {
         // Only fetch subscription dates if they are pro
         try {
-          const subData = await getSubscription(); // Make sure this is imported from @/lib/api
+          const subData = await getSubscription();
           setCurrentPeriodEnd(subData.current_period_end);
           setLastRenewalDate(subData.last_renewal_date);
+          setSubscriptionStatus(subData.status === "inactive" ? null : subData.status);
+          setCancelAtPeriodEnd(Boolean(subData.cancel_at_period_end));
+          setCanManageBilling(Boolean(subData.can_manage));
         } catch {}
       } else {
-        setCurrentPeriodEnd(null);
-        setLastRenewalDate(null);
+        clearSubscription();
       }
 
     } catch {
@@ -91,8 +121,7 @@ export function PlanProvider({ children }: { children: ReactNode }) {
         setPlan(null);
         setDocumentsProcessed(0);
         setLimit(FREE_LIMIT);
-        setCurrentPeriodEnd(null);
-        setLastRenewalDate(null);
+        clearSubscription();
         setIsLoading(false);
       }
     };
@@ -101,7 +130,20 @@ export function PlanProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <PlanContext.Provider value={{ plan, documentsProcessed, limit, isLoading, refreshPlan, currentPeriodEnd, lastRenewalDate }}>
+    <PlanContext.Provider
+      value={{
+        plan,
+        documentsProcessed,
+        limit,
+        isLoading,
+        refreshPlan,
+        currentPeriodEnd,
+        lastRenewalDate,
+        subscriptionStatus,
+        cancelAtPeriodEnd,
+        canManageBilling,
+      }}
+    >
       {children}
     </PlanContext.Provider>
   );

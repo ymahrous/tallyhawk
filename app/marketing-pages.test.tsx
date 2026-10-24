@@ -6,6 +6,7 @@ import PricingPage, { metadata as pricingMetadata } from "./pricing/page";
 import PrivacyPolicy from "./privacy/page";
 import TermsOfService from "./terms/page";
 import AccessibilityStatement from "./accessibility/page";
+import ContactPage from "./contact/page";
 import NotFound from "./not-found";
 import { metadata as rootMetadata, viewport } from "./layout";
 import { renderWithProviders } from "@/test/render";
@@ -154,14 +155,24 @@ describe("pricing page", () => {
     signIn({ plan: "free" });
     mockApi({
       ...accountRoutes({ plan: "free" }),
-      "POST /billing/create-checkout-session": { status: 500, json: {} },
+      "POST /billing/create-checkout-session": { status: 502, json: { detail: "Couldn't start checkout. Please try again." } },
     });
     renderWithProviders(<PricingPage />);
 
     await userEvent.click(await screen.findByRole("button", { name: "Upgrade to Pro" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't start checkout");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't start checkout. Please try again.");
     expect(screen.getByRole("button", { name: "Upgrade to Pro" })).toBeEnabled();
+  });
+
+  it("doesn't offer plans to admin accounts", async () => {
+    signIn({ role: "admin", plan: undefined });
+    const server = mockApi();
+    renderWithProviders(<PricingPage />);
+    const buttons = await screen.findAllByRole("button", { name: "Admin account" });
+    expect(buttons).toHaveLength(2);
+    buttons.forEach((b) => expect(b).toBeDisabled());
+    expect(server.callsTo("GET /billing/usage")).toEqual([]);
   });
 
   it("shows Pro as current and Free as included for Pro users", async () => {
@@ -204,6 +215,60 @@ describe("legal pages", () => {
     renderWithProviders(<Page />);
     expect(screen.getByRole("heading", { level: 1, name: title })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: lastSection })).toBeInTheDocument();
+  });
+});
+
+describe("contact page", () => {
+  const fill = async (values: Record<string, string>) => {
+    for (const [label, value] of Object.entries(values)) {
+      const input = screen.getByLabelText(label);
+      await userEvent.clear(input);
+      if (value) await userEvent.type(input, value);
+    }
+  };
+
+  it("renders a ContactPage with breadcrumb structured data", () => {
+    const { container } = renderWithProviders(<ContactPage />);
+    expect(screen.getByRole("heading", { level: 1, name: "Get in touch" })).toBeInTheDocument();
+    expect(jsonLdTypes(container)).toEqual(["ContactPage", "BreadcrumbList"]);
+  });
+
+  it("checks the fields before sending, then sends and confirms", async () => {
+    const server = mockApi({ "POST /contact": { status: 201, json: { status: "success" } } });
+    renderWithProviders(<ContactPage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Send message" }));
+    expect(screen.getByText("Please enter your name.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toHaveAttribute("aria-invalid", "true");
+    expect(server.requests).toEqual([]);
+
+    await fill({ Name: "Ada Lovelace", Email: "ada@example.com", Subject: "Billing question", Message: "Can I get a receipt for last month?" });
+    await userEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Thanks, your message is on its way.");
+    expect(server.callsTo("POST /contact")[0].body).toEqual({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      subject: "Billing question",
+      message: "Can I get a receipt for last month?",
+      website: "",
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Send another message" }));
+    expect(screen.getByLabelText("Name")).toHaveValue("");
+  });
+
+  it("keeps the honeypot out of reach and shows server errors", async () => {
+    mockApi({ "POST /contact": { status: 429, json: { detail: "Too many requests. Please try again later." } } });
+    renderWithProviders(<ContactPage />);
+    const honeypot = document.getElementById("contact-website")!;
+    expect(honeypot).toHaveAttribute("tabindex", "-1");
+    expect(honeypot.closest("[aria-hidden='true']")).not.toBeNull();
+
+    await fill({ Name: "Ada", Email: "ada@example.com", Subject: "Hi", Message: "Hello there, team!" });
+    await userEvent.click(screen.getByRole("button", { name: "Send message" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Too many requests");
+    expect(screen.getByRole("button", { name: "Send message" })).toBeEnabled();
   });
 });
 

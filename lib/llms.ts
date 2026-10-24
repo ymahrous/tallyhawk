@@ -38,6 +38,7 @@ export function buildLlmsTxt(): string {
     `- [Pricing](${absoluteUrl("/pricing")}): Free and Pro plans, plan comparison and billing FAQ`,
     `- [Sign up](${absoluteUrl("/signup")}): Create a free account (no credit card required)`,
     `- [Log in](${absoluteUrl("/login")}): Sign in to the dashboard`,
+    `- [Contact](${absoluteUrl("/contact")}): Questions about billing, accounts, privacy or data requests`,
     "",
     "## Plans",
     "",

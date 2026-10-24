@@ -9,12 +9,12 @@ import {
   getCategorySpend,
   getVendorSpend,
   getMonthlyTrend,
-  isTokenExpired,
   CategorySpend,
   VendorSpend,
   MonthlySpend
 } from "@/lib/api";
 import { formatCurrency, CurrencyCode } from "@/lib/currency";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid
@@ -47,13 +47,11 @@ export default function AnalyticsPage() {
 
   const { baseCurrency } = useSettings();
   const currencyFormatter = (value: number) => formatCurrency(value, baseCurrency as CurrencyCode);
+  const allowed = useAuthGuard("user");
 
   useEffect(() => {
-    if (isTokenExpired() || !localStorage.getItem("token")) {
-      router.push("/login");
-      return;
-    }
-    
+    if (!allowed) return;
+
     if (plan !== "pro") {
       // The plan seeds from the session token and is confirmed by the API; don't flash the upsell
       // at a Pro user whose token predates their upgrade.
@@ -80,7 +78,7 @@ export default function AnalyticsPage() {
     };
 
     fetchData();
-  }, [plan, planLoading, router, selectedYear, selectedMonth]);
+  }, [allowed, plan, planLoading, selectedYear, selectedMonth]);
 
   if (loading) {
     return (

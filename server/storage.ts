@@ -13,10 +13,10 @@ function bucket() {
   return client.storage.from(name);
 }
 
-/** Uploads (upserting) and returns the object's public URL. */
-export async function uploadToStorage(bytes: Uint8Array, path: string): Promise<string> {
+/** Uploads a new object and returns its public URL. Paths are unique, so an existing object is never overwritten. */
+export async function uploadToStorage(bytes: Uint8Array, path: string, contentType: string): Promise<string> {
   const store = bucket();
-  const { error } = await store.upload(path, bytes, { contentType: "application/octet-stream", upsert: true });
+  const { error } = await store.upload(path, bytes, { contentType, upsert: false });
   if (error) throw new Error(`Storage upload failed: ${error.message}`);
   return store.getPublicUrl(path).data.publicUrl;
 }

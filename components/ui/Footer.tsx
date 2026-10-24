@@ -77,6 +77,7 @@ export default function Footer() {
               <li><Link href="/terms" className={linkClass}>Terms of Service</Link></li>
               <li><Link href="/privacy" className={linkClass}>Privacy Policy</Link></li>
               <li><Link href="/accessibility" className={linkClass}>Accessibility</Link></li>
+              <li><Link href="/contact" className={linkClass}>Contact</Link></li>
               <li>
                 <button onClick={reopen} className={linkClass}>
                   Cookie Preferences
